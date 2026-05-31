@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.1] - 2026-05-31
+
+### Added
+- **9 STOP/CHECKPOINT visual markers** at all interaction checkpoints (Phase 3 entry, CP1/CP3/CP4, Mode B G2 CPs, audit rollback) to prevent autonomous drift
+- **Anti-Patterns section** in SKILL.md: 8 explicit prohibitions with rationale and alternatives (fabrication, self-audit, vague fillers, skipping confirmation, etc.)
+- **Auto-detect resume paths**: Glob-based `resume_master.md` discovery + story library path resolution, eliminating redundant "ask user for path" on every run
+- **Dual-column Error Handling**: primary action + secondary fallback for all 8 error scenarios
+- **Darwin Skill evaluation baseline**: 74.3/100 → 84.6/100 (+10.3)
+
+### Changed
+- **Resume Input flow**: from "always ask user" to 3-step auto-detection (Glob → workspace memory → ask as last resort)
+- **Error Handling table**: expanded from single "Action" column to "Primary Action + If Primary Fails" dual-column format
+- **README**: updated with Darwin optimization results and v3.0 quality improvements
+
 ## [3.0.0] - 2026-04-15
 
 ### Added

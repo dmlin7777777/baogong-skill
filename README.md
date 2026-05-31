@@ -282,14 +282,18 @@ The CSS is designed for **A4 portrait, single page**. Adjust spacing variables t
 
 ## Version History
 
-### v3.0 (Current) — Multi-Agent + Rendering Pipeline
+### v3.0 (Current) — Multi-Agent + Rendering Pipeline + Darwin Optimized
+- **Darwin Skill 9-dim evaluation**: 74.3 → **84.6** (+10.3)
+- **9 STOP/CHECKPOINT markers** added to prevent autonomous drift
+- **Anti-Patterns section** (8 prohibitions) — never fabricate, never self-audit, never skip user confirmation
+- **Auto-detect resume paths**: Glob `resume_master.md` + story library path resolution
+- **Dual-column error handling**: primary action + secondary fallback for all 8 error scenarios
 - **Pseudo-multi-agent architecture** with isolated Scout / Architect / Auditor nodes
 - **Blackboard state protocol** via `context_snapshot.json` (4-layer schema v1.1)
 - **HTML rendering pipeline** with Jinja2 templates + CSS styling
 - **WeasyPrint PDF** output with page overflow detection → automatic compression trigger
 - **pypandoc DOCX** clean conversion (no HTML→Word formatting issues)
 - **Nuance buffer** + **conversation history** for cross-node context continuity
-- **Mandatory experience metadata** enforcement (Company, Title, Dept, Date, Location)
 
 ### v2.4 — Structural Refactor
 - 4-stage pipeline, 3-tier routing, unified extraction

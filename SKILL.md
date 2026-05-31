@@ -25,8 +25,16 @@ Analyze a job description and tailor the source resume to match, using isolated 
 
 ## Resume Input
 
-On first run, **ask the user to provide their resume file path** (.docx preferred, .pdf or .txt acceptable).
-Store the path in memory. **Never modify the original.**
+On first run, **try auto-detection first**:
+1. `Glob **/resume_master.md` in workspace — if found, use it directly
+2. If workspace has `源文件/resume_master.md` or `.workbuddy/memory/MEMORY.md` with a resume path, follow that
+3. Only if auto-detect fails → ask user to provide their resume file path (.docx preferred, .pdf or .txt acceptable)
+
+**Story library path** (for Mode B capability matching): `{user vault}/01-个人经历/项目故事库.md`
+- Use `Glob **/项目故事库.md` to auto-locate the vault
+- Fallback: ask user for Obsidian vault path
+
+Store the resolved paths in workspace memory. **Never modify the original.**
 
 ## Operating Modes
 
@@ -61,10 +69,10 @@ Phase G1: Capability Matching (replaces Phase 1+2)
   5. Present selection recommendation to user (CP1)
 
 Phase G2: Interactive Refinement (= Phase 3, CP1-CP4)
-  CP1: Experience selection (which experiences to keep/hide)
+  **🔴 STOP CP1**: Experience selection → show ranked list → **WAIT for user picks**
   CP2: Skipped (no JD → no gap analysis)
-  CP3: Quantification audit (Anti-Filler Rule — same as Mode A)
-  CP4: Wording upgrade (same as Mode A, but use general role tone)
+  **🔴 STOP CP3**: Quantification audit (Anti-Filler Rule) → **WAIT for user to confirm or provide numbers**
+  **🔴 STOP CP4**: Wording upgrade → show before/after → **WAIT for user approval**
 
 Phase G3: Delivery & Audit (= Phase 4)
   Same physical isolation audit as Mode A.
@@ -152,6 +160,8 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 
 ### Phase 3: Dynamic Interaction
 
+**🔴 CHECKPOINT · 🛑 STOP — 进入交互前确认用户在场，收到回复后再推进。**
+
 **Node**: Resume Architect
 **Reference**: `references/writer_guide.md`
 **Sub-nodes**: `architect_writer` → `architect_quantify` → `architect_wording`
@@ -169,10 +179,10 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 
 | CP | Name | What Happens |
 |----|------|-------------|
-| CP1 | Experience Selection | Reverse chronological review, user picks keep/hide |
+| **🔴 STOP CP1** | Experience Selection | Reverse chronological review, user picks keep/hide. **WAIT for user confirmation before proceeding.** |
 | CP2 | Content Gaps | Scenario-based gap filling (implicit matches) |
-| CP3 | Quantification | Anti-Filler Rule: progressive probing, no vague filler |
-| CP4 | Wording Upgrade | Verb map, cultural tone slider, before→after comparison |
+| **🔴 STOP CP3** | Quantification | Anti-Filler Rule: progressive probing. **WAIT for user to provide numbers or confirm "no data".** |
+| **🔴 STOP CP4** | Wording Upgrade | Verb map, cultural tone slider, before→after comparison. **WAIT for user approval before writing draft.** |
 
 **CP3 Progressive Probing Protocol** (when a bullet lacks quantification):
 
@@ -225,7 +235,7 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 3. Classify severity: 🔴 MAJOR / 🟡 MINOR / 🟢 INFO
 4. For each 🔴 MAJOR: generate mock interview questions + STAR prep sheets
 
-**If 🔴 MAJOR found**: Set flag `["ROLLBACK"]` in STATE_UPDATE → engine reverts to Phase 3
+**If 🔴 MAJOR found**: Set flag `["ROLLBACK"]` in STATE_UPDATE → engine reverts to Phase 3. **🔴 STOP — report findings to user before rollback, let user decide which issues to fix.**
 
 #### Step 4d: Compile & Deliver
 
@@ -278,18 +288,31 @@ CSS template: `templates/resume_template.css` (Tech Style, single-column, A4 por
     └── ...
 ```
 
+## Anti-Patterns（NEVER）
+
+| # | 反模式 | 为什么不能做 | 替代做法 |
+|---|---|---|---|
+| 1 | **捏造或推断经历中的数据** | 简历被面试官追问时无法回答，直接丢 offer | Mode B：故事库没有的数据 → 问用户确认，绝不编造 |
+| 2 | **在 Mode B 做"逻辑推断"扩展** | "覆盖从需求定义到上线的完整周期"这类推理即使看起来合理也不允许 | 只做提炼，不做扩展 |
+| 3 | **用模糊填充词替代量化数据** | "实现智能化""显著提升效率" = AI 生成痕迹，面试官一眼识别 | CP3 追问 2 轮后用户仍无法提供 → 写过程描述 |
+| 4 | **在同一个 LLM 调用里写完又审** | 自写自审 = 零审查效果 | Phase 4 物理隔离：Writer 只写，Auditor 只审，两个独立调用 |
+| 5 | **修改原始简历文件** | 源头文件被污染后所有衍生简历都受影响 | 始终从源文件读取到新文件，不在源文件上编辑 |
+| 6 | **跳过用户确认直接出最终稿** | 用户没有机会在关键决策点纠正方向 | 每次 CP 必须 WAIT for user confirmation |
+| 7 | **Mode B 把故事库内容改写/润色** | 故事库是面试一致性的唯一保证，改写后问答脱节 | Mode B 只做"选取"和"重组"，不改写原 bullet 含义 |
+| 8 | **用"建议/可以考虑/根据情况"等软化措辞替代明确的 STOP 标记** | LLM 不识别弱措辞，会继续执行 | 必须用 `🔴 STOP` 或 `🛑 CHECKPOINT` 显性标记 |
+
 ## Error Handling
 
-| Error | Action |
-|-------|--------|
-| No resume file | Ask user to provide path |
-| No JD provided | Switch to Mode B (General-Purpose) — see Operating Modes |
-| JD URL fetch fails | Ask user to paste text |
-| Story library missing data for a claim | Ask user to confirm — NEVER fabricate or infer |
-| STATE_UPDATE JSON parse fail | Inject self-correction prompt, retry once |
-| 🔴 Major issues in audit | ROLLBACK flag → revert to Phase 3 |
-| LLM timeout | Retry with same snapshot context |
-| Script failure (jd_parser etc.) | Degrade gracefully, Scout node handles via LLM, do NOT abort |
+| Error | Primary Action | If Primary Fails |
+|-------|---------------|-----------------|
+| No resume file | Auto-detect via Glob; ask user if not found | Check `.workbuddy/memory/MEMORY.md` for stored path |
+| No JD provided | Switch to Mode B (General-Purpose) | If user confirms they want JD mode → ask them to paste JD text |
+| JD URL fetch fails | Ask user to paste text | Try WebFetch with mobile user-agent as fallback |
+| Story library missing data for a claim | Ask user to confirm — NEVER fabricate | If user also can't confirm → drop the claim entirely, don't include |
+| STATE_UPDATE JSON parse fail | Inject self-correction prompt, retry once | Second failure → manually extract key fields from raw output, skip JSON parsing |
+| 🔴 Major issues in audit | ROLLBACK flag → revert to Phase 3 | If re-audit still finds majors → escalate to user: "fix manually or accept risk?" |
+| LLM timeout | Retry with same snapshot context | Second timeout → restart with reduced snapshot (trim non-essential context) |
+| Script failure (jd_parser etc.) | Degrade gracefully, Scout node handles via LLM | If both script and LLM fail → ask user to manually summarize JD in 3 bullet points |
 
 ## Dependencies
 
