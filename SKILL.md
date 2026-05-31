@@ -304,6 +304,13 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 4. Render output (see Rendering section below)
 5. Archive snapshot from `sessions/` to `history/`
 
+> 🛑 **DELIVERY GATE**：Phase 4a Writer → Phase 4b Auditor → Phase 4c Reverse Audit → Phase 4d Compile → Phase 4e Historical Audit，**五步缺一不可**。跳过 Auditor = 未完成交付。
+
+#### Output Naming Convention
+
+- **项目副标题**：写角色/身份（如"独立开发""个人项目"），**不写课程编号或学校名**（如 ❌"NUS BAP" ❌"课程项目"）。目的是让面试官感知为独立成果而非课堂 toy。
+- **地点**：写城市或国家，不写学校。
+
 #### Step 4e: Historical Version Audit ⭐
 
 **每次生成新简历前，必须与历史版本对比。不允许新版本在量化或措辞上比旧版倒退。**
@@ -386,6 +393,8 @@ CSS template: `templates/resume_template.css` (Tech Style, single-column, A4 por
 | 7 | **Mode B 把故事库内容改写/润色** | 故事库是面试一致性的唯一保证，改写后问答脱节 | Mode B 只做"选取"和"重组"，不改写原 bullet 含义 |
 | 8 | **用"建议/可以考虑/根据情况"等软化措辞替代明确的 STOP 标记** | LLM 不识别弱措辞，会继续执行 | 必须用 `🔴 STOP` 或 `🛑 CHECKPOINT` 显性标记 |
 | 9 | **生成新版本不与历史版本对比** | 量化数据可能在迭代中丢失（如"48h→12h"变成"显著缩短"） | 每次交付前执行 [[#Step 4e Historical Version Audit]]，量化倒退 → 回退到旧版数字 |
+| 10 | **用课程/学校标签弱化项目** | "NUS 商业分析项目（BAP）"让人以为是课程 toy，面试官直接打折 | 副标题只写角色身份（"独立开发"/"个人项目"），不写课程编号；地点写城市/国家，不写学校 |
+| 11 | **跳过 Phase 4 反向审计直接交付** | 没有独立 Auditor 的简历 = 没有诚意检查，面试时会被追问打穿 | Phase 4 必须 Writer → Auditor 两个独立调用；Auditor 未跑完不能交付 |
 
 ## Error Handling
 
