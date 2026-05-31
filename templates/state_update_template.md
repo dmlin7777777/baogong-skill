@@ -78,22 +78,22 @@ If this block is missing or malformed, the output is rejected and a reformat req
   "delta": {
     "user_decisions": {
       "kept_experiences": [
-        {"id": "pwc", "label": "PwC Singapore — Data Analysis Intern", "position_order": 0},
-        {"id": "valores", "label": "Valores Green Solutions — Data & Operations Specialist", "position_order": 1},
+        {"id": "pwc", "label": "Consulting Corp — Data Analysis Intern", "position_order": 0},
+        {"id": "valores", "label": "GreenTech Solutions — Data & Operations Specialist", "position_order": 1},
         {"id": "jiuqi", "label": "Jiuqi Software — Project Manager", "position_order": 2},
         {"id": "didi", "label": "DiDi Finance — Strategy Intern", "position_order": 3}
       ],
       "removed_experiences": ["tianzhi", "strowin"],
       "experience_metadata": {
         "pwc": {
-          "company_name": "PwC Singapore",
+          "company_name": "Consulting Corp",
           "job_title": "Data Analysis Intern",
           "department": "Financial Data & Systems",
           "date_range": "Mar 2026 – Present",
           "location": "Singapore (Hybrid)"
         },
         "valores": {
-          "company_name": "Valores Green Solutions Pte Ltd",
+          "company_name": "GreenTech Solutions",
           "job_title": "Data & Operations Specialist",
           "department": "Data & Operations",
           "date_range": "Oct 2025 – Mar 2026",

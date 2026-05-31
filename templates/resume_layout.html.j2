@@ -13,7 +13,7 @@
 {{ css_inline }}
 </style>
 </head>
-<body>
+<body{% if body_class %} class="{{ body_class }}"{% endif %}>
 
 <div class="page-container">
 {{ body_html }}

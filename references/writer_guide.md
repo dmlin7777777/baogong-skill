@@ -56,7 +56,7 @@ Every experience entry **must** contain all of the following fields before it ca
 
 | Field | Required | Example | If Missing |
 |-------|----------|---------|------------|
-| Company Name | ✅ Always | "PwC Singapore" | ❌ Cannot proceed — must ask user |
+| Company Name | ✅ Always | "Consulting Corp" | ❌ Cannot proceed — must ask user |
 | Job Title | ✅ Always | "Data Analysis Intern" | ❌ Cannot proceed — must ask user |
 | Department | ✅ Strongly Recommended | "Financial Data & Systems" | ⚠️ Prompt user: *"Which department/team were you in at [Company]? This helps contextualize your scope."* |
 | Date Range | ✅ Always | "Mar 2026 – Present" | ❌ Cannot proceed — must ask user |
@@ -322,7 +322,7 @@ Each experience block uses a **two-row flexible header**:
 #### Row 1: Company · **Title** | Date
 
 ```markdown
-### PwC Singapore — **Data Analysis Intern**
+### Consulting Corp — **Data Analysis Intern**
 Mar 2026 – Present
 ```
 
@@ -330,7 +330,7 @@ Rules for Row 1:
 - Use `###` heading level for each experience
 - Format: `{Company} — **{Title}**`
 - Put date on same line OR next line (renderer handles both via CSS flex)
-- If company name is long, abbreviate naturally (e.g., "Valores Green Solutions Pte Ltd" → "Valores Green Solutions")
+- If company name is long, abbreviate naturally (e.g., "GreenTech Solutions" → "GreenTech Solutions")
 
 #### Row 2: *Department* | Location (REQUIRED — prompt user if missing)
 
@@ -446,7 +446,7 @@ Data analyst with 2+ years of experience in financial reporting automation and c
 ## Education
 
 ### Master of Science in Business Analytics
-**National University of Singapore** | Aug 2025 – Oct 2026 | Singapore
+**University of Technology** | Aug 2025 – Oct 2026 | Singapore
 - GPA: 4.0/5.0 (Expected)
 - Relevant Coursework: Machine Learning, Big Data Analytics, Financial Modeling, Database Management
 - Honors: Dean's List (Semester 1)
@@ -458,14 +458,14 @@ Data analyst with 2+ years of experience in financial reporting automation and c
 
 ## Work Experience
 
-### PwC Singapore — **Data Analysis Intern**
+### Consulting Corp — **Data Analysis Intern**
 *Financial Data & Systems* | Mar 2026 – Present | Singapore (Hybrid)
 
 - **Financial Data Automation**: Developed Python-based ETL scripts to automate inter-company reconciliation for 15+ entities, reducing manual effort by 70% and eliminating 95% of manual adjustment errors.
 - **Stakeholder Reporting**: Designed Power BI dashboards serving 20+ stakeholders across Audit, Tax, and Advisory practices, enabling real-time visibility into project financial status.
 - **Process Optimization**: Identified inefficiencies in legacy Excel workflows and proposed migration to cloud-based solutions, currently in pilot phase with 3 client teams.
 
-### Valores Green Solutions — **Data & Operations Specialist**
+### GreenTech Solutions — **Data & Operations Specialist**
 *Data & Operations* | Oct 2025 – Mar 2026 | Singapore
 
 - **Data Infrastructure Setup**: Architected and deployed data collection pipelines processing 50K+ daily records from IoT environmental sensors, achieving 99.5% data completeness rate.

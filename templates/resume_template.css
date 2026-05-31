@@ -31,6 +31,60 @@
 }
 
 /* ========================================
+   1.1 Compact Mode Override
+   Activate via <body class="compact"> for one-page squeeze.
+   ======================================== */
+body.compact {
+    --fs-name: 18pt;
+    --fs-subtitle: 9pt;
+    --fs-section: 9.5pt;
+    --fs-body: 9pt;
+    --fs-small: 8pt;
+    --fs-meta: 7.5pt;
+
+    --lh-body: 1.3;
+    --lh-tight: 1.2;
+
+    --gap-section: 4pt;
+    --gap-item: 3pt;
+    --gap-bullet: 0.5pt;
+
+    --page-margin: 10mm;
+}
+
+body.compact {
+    padding: 10mm 14mm;
+}
+
+body.compact .header {
+    margin-bottom: 3pt;
+    padding-bottom: 3pt;
+    border-bottom-width: 1.2pt;
+}
+
+body.compact .header h1 { margin-bottom: 0pt; }
+body.compact .header .subtitle { margin-bottom: 2pt; }
+
+body.compact .section-title {
+    letter-spacing: 0.08em;
+    margin-bottom: 2pt;
+    padding-bottom: 1pt;
+    border-bottom-width: 0.6pt;
+}
+
+body.compact .exp-header-row {
+    font-size: 9.5pt;
+    margin-top: 1pt;
+}
+
+body.compact .exp-sub-row { margin-bottom: 0pt; }
+
+body.compact ul {
+    padding-left: 1rem;
+    margin: 0pt 0 0 0;
+}
+
+/* ========================================
    1.5 Font Face Declarations (for WeasyPrint & headless renderers)
    
    On desktop browsers, system fonts are used via font-family fallback.
@@ -277,18 +331,18 @@ li p { display: inline; margin: 0; }
 }
 
 /* ========================================
-   9. Skills Tags
+   9. Skills Entries (per-line skill items)
    ======================================== */
-.skill-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 3pt 6pt;
-    margin-top: 2pt;
+.skill-entry {
+    font-size: var(--fs-body);
+    line-height: var(--lh-tight);
+    margin-bottom: 1.5pt;
+    color: var(--secondary);
 }
 
-.skill-tag {
-    font-size: var(--fs-meta);
-    color: var(--secondary);
+.skill-entry .bullet-summary {
+    font-weight: 700;
+    color: var(--primary);
 }
 
 /* ========================================

@@ -360,6 +360,482 @@ def markdown_to_html(md_text: str) -> str:
 
 
 # ════════════════════════════════════════════════════════
+# PHASE 2.5: HTML STRUCTURE MAPPING (bare tags → CSS classes)
+#
+# Architecture: Tokenize → Group into Sections → Per-section renderers
+#
+# Refactored from monolithic line-scanner to isolated, testable parsers.
+# Each _render_* function receives only its section's tokens and produces
+# a self-contained HTML fragment. No shared mutable state.
+# ════════════════════════════════════════════════════════
+
+# ── Data structures ──
+
+@dataclass
+class HtmlToken:
+    """A semantic chunk of the markdown-it HTML output."""
+    type: str                    # "h1" | "h2" | "h3" | "paragraph" | "list" | "empty"
+    raw_lines: list[str]         # original HTML lines belonging to this token
+    text: str = ""               # extracted plain text (for headings)
+
+
+@dataclass
+class Section:
+    """A resume section bounded by h2 headings."""
+    title: str                   # h2 text (empty for header section)
+    type: str                    # "header" | "education" | "experience" | "skills" | "projects" | "summary"
+    tokens: list[HtmlToken]
+
+
+# ── Shared patterns ──
+
+_DATE_RE = re.compile(
+    r'(\d{4}[\.\s]*\d*[\.\s]*\s*[–\-]\s*(?:至今|\d{4}[\.\s]*\d*))'
+)
+
+_CITY_NAMES = (
+    r'[\u4e00-\u9fff]+|Singapore|Beijing|Wuhan|Shanghai|'
+    r'Shenzhen|Hangzhou|Guangzhou|Chengdu|Nanjing|Xi\'an'
+)
+_LOC_RE = re.compile(r'\|\s*(' + _CITY_NAMES + r')\s*$')
+
+_BS_MARKER = '<span class="bullet-summary">'
+
+
+# ── Tokenizer ──
+
+def _tokenize(html: str) -> list[HtmlToken]:
+    """
+    Split raw markdown-it HTML output into semantic tokens.
+
+    Handles multi-line <p> and <ul>/<li> blocks by tracking open/close tags.
+    """
+    lines = html.strip().split('\n')
+    tokens: list[HtmlToken] = []
+    i = 0
+
+    while i < len(lines):
+        line = lines[i].strip()
+        if not line:
+            i += 1
+            continue
+
+        # Headings: single-line, self-contained
+        h1_m = re.match(r'<h1>(.+)</h1>', line)
+        if h1_m:
+            tokens.append(HtmlToken(type="h1", raw_lines=[line], text=h1_m.group(1)))
+            i += 1
+            continue
+
+        h2_m = re.match(r'<h2>(.+)</h2>', line)
+        if h2_m:
+            tokens.append(HtmlToken(type="h2", raw_lines=[line], text=h2_m.group(1)))
+            i += 1
+            continue
+
+        h3_m = re.match(r'<h3>(.+)</h3>', line)
+        if h3_m:
+            tokens.append(HtmlToken(type="h3", raw_lines=[line], text=h3_m.group(1)))
+            i += 1
+            continue
+
+        # List block: collect <ul>...<li>...</li>...</ul>
+        if '<ul>' in line or '<li>' in line:
+            block_lines = []
+            while i < len(lines):
+                cur = lines[i].strip()
+                if not cur:
+                    i += 1
+                    continue
+                if '<ul>' in cur or '<li>' in cur or '</ul>' in cur:
+                    block_lines.append(cur)
+                    if '</ul>' in cur:
+                        i += 1
+                        break
+                else:
+                    break
+                i += 1
+            tokens.append(HtmlToken(type="list", raw_lines=block_lines))
+            continue
+
+        # Paragraph: <p>...</p>, possibly multi-line
+        if '<p>' in line:
+            block_lines = []
+            while i < len(lines):
+                cur = lines[i].strip()
+                if not cur:
+                    i += 1
+                    continue
+                block_lines.append(cur)
+                if '</p>' in cur:
+                    i += 1
+                    break
+                i += 1
+            tokens.append(HtmlToken(type="paragraph", raw_lines=block_lines))
+            continue
+
+        # Fallback: pass through
+        tokens.append(HtmlToken(type="empty", raw_lines=[line]))
+        i += 1
+
+    return tokens
+
+
+# ── Section grouper ──
+
+_SECTION_TYPE_MAP = {
+    "教育": "education",
+    "education": "education",
+    "经历": "experience",
+    "实习": "experience",
+    "experience": "experience",
+    "work": "experience",
+    "技能": "skills",
+    "证书": "skills",
+    "skills": "skills",
+    "学术": "projects",
+    "项目": "projects",
+    "academic": "projects",
+    "projects": "projects",
+}
+
+
+def _classify_section(title: str) -> str:
+    """Map h2 title text to a section type."""
+    lower = title.lower()
+    for keyword, stype in _SECTION_TYPE_MAP.items():
+        if keyword in lower:
+            return stype
+    return "summary"
+
+
+def _group_into_sections(tokens: list[HtmlToken]) -> list[Section]:
+    """
+    Group tokens into sections bounded by h2 headings.
+    Everything before the first h2 becomes a "header" section.
+    """
+    sections: list[Section] = []
+    current: list[HtmlToken] = []
+    current_title = ""
+    current_type = "header"
+
+    for token in tokens:
+        if token.type == "h2":
+            # Flush current section
+            if current or current_type == "header":
+                sections.append(Section(
+                    title=current_title,
+                    type=current_type,
+                    tokens=current,
+                ))
+            current = []
+            current_title = token.text
+            current_type = _classify_section(token.text)
+        else:
+            current.append(token)
+
+    # Flush last section
+    if current:
+        sections.append(Section(
+            title=current_title,
+            type=current_type,
+            tokens=current,
+        ))
+
+    return sections
+
+
+# ── Shared header parsing utilities ──
+
+def _extract_date(text: str) -> tuple[str, str]:
+    """Extract date string from text, return (date_str, remaining_text)."""
+    m = _DATE_RE.search(text)
+    if m:
+        return m.group(1), text[:m.start()] + text[m.end():]
+    return "", text
+
+
+def _extract_location(text: str) -> tuple[str, str]:
+    """Extract city from last |-separated field, return (location, remaining_text)."""
+    m = _LOC_RE.search(text)
+    if m:
+        return m.group(1).strip(), text[:m.start()] + text[m.end():]
+    return "", text
+
+
+def _clean_dept(text: str) -> str:
+    """Strip HTML tags, pipes, and normalize whitespace for department text."""
+    text = re.sub(r'<[^>]+>', '', text)
+    text = re.sub(r'\s*\|\s*', ' ', text)
+    text = re.sub(r'\s+', ' ', text)
+    return text.strip()
+
+
+# ── Per-section renderers ──
+
+def _render_header_section(tokens: list[HtmlToken]) -> str:
+    """Render the header section (h1 name + contact info)."""
+    lines: list[str] = []
+    name = ""
+    contact_parts: list[str] = []
+
+    for token in tokens:
+        if token.type == "h1" and not name:
+            name = token.text
+        elif token.type == "paragraph":
+            # Extract text from <p>...</p>
+            combined = '\n'.join(token.raw_lines)
+            p_m = re.search(r'<p>(.+?)</p>', combined, re.DOTALL)
+            if p_m:
+                contact_parts = [p.strip() for p in p_m.group(1).split('|')]
+
+    lines.append('<div class="header">')
+    if name:
+        lines.append(f'  <h1>{name}</h1>')
+    if contact_parts:
+        lines.append('  <div class="contact-info">')
+        for part in contact_parts:
+            lines.append(f'    <span>{part}</span>')
+        lines.append('  </div>')
+    lines.append('</div>')
+    return '\n'.join(lines)
+
+
+def _render_education_items(tokens: list[HtmlToken]) -> str:
+    """
+    Render education section.
+    Each h3 starts a new education-item; following paragraph has school+date;
+    list items become edu-details.
+    """
+    lines: list[str] = []
+    i = 0
+
+    while i < len(tokens):
+        token = tokens[i]
+        if token.type != "h3":
+            i += 1
+            continue
+
+        degree_text = token.text
+        lines.append('<div class="education-item">')
+        lines.append('  <div class="edu-degree-row">')
+        lines.append(f'    <span class="degree">{degree_text}</span>')
+
+        # Look for school+date in next paragraph
+        date_str = ""
+        school_text = ""
+        if i + 1 < len(tokens) and tokens[i + 1].type == "paragraph":
+            p_token = tokens[i + 1]
+            combined = '\n'.join(p_token.raw_lines)
+            p_m = re.search(r'<p>(.+?)</p>', combined, re.DOTALL)
+            if p_m:
+                p_content = p_m.group(1)
+                date_str, p_content = _extract_date(p_content)
+                # Remove remaining pipes
+                p_content = re.sub(r'\s*\|\s*', ' ', p_content).strip()
+                p_content = re.sub(r'\s+', ' ', p_content)
+                school_text = p_content
+            i += 2
+        else:
+            i += 1
+
+        lines.append(f'    <span class="date">{date_str}</span>')
+        lines.append('  </div>')
+        if school_text:
+            lines.append(f'  <div class="edu-school">{school_text}</div>')
+
+        # Collect list items as edu-details
+        while i < len(tokens) and tokens[i].type in ("list", "paragraph"):
+            t = tokens[i]
+            if t.type == "list":
+                for raw_line in t.raw_lines:
+                    li_m = re.search(r'<li>(.+?)</li>', raw_line, re.DOTALL)
+                    if li_m:
+                        lines.append(f'  <div class="edu-details">{li_m.group(1)}</div>')
+            i += 1
+
+        lines.append('</div>')
+
+    return '\n'.join(lines)
+
+
+def _render_experience_items(tokens: list[HtmlToken]) -> str:
+    """
+    Render experience/project section.
+    Each h3 starts a new experience-item. Uses consume-all strategy:
+    all tokens after h3 (until next h3) belong to the current item.
+    """
+    lines: list[str] = []
+    i = 0
+
+    while i < len(tokens):
+        token = tokens[i]
+        if token.type != "h3":
+            i += 1
+            continue
+
+        h3_content = token.text
+        lines.append('<div class="experience-item">')
+        lines.append('  <div class="exp-header-row">')
+        lines.append(f'    <span class="company-title">{h3_content}</span>')
+        i += 1
+
+        # Consume all tokens until next h3
+        content_tokens: list[HtmlToken] = []
+        while i < len(tokens) and tokens[i].type != "h3":
+            content_tokens.append(tokens[i])
+            i += 1
+
+        # Combine all content into one text block
+        full_text = ""
+        for ct in content_tokens:
+            combined = '\n'.join(ct.raw_lines)
+            # Strip <p>...</p> and <ul>...</ul> wrappers
+            combined = re.sub(r'^\s*<p>\s*', '', combined, flags=re.DOTALL)
+            combined = re.sub(r'\s*</p>\s*$', '', combined, flags=re.DOTALL)
+            combined = re.sub(r'</?ul>\s*', '', combined)
+            if full_text:
+                full_text += '\n'
+            full_text += combined
+
+        full_text = full_text.strip()
+
+        # Split into header (before first bullet-summary) and bullets
+        bs_idx = full_text.find(_BS_MARKER)
+        if bs_idx >= 0:
+            header_part = full_text[:bs_idx].strip()
+            bullet_part = full_text[bs_idx:]
+        else:
+            header_part = full_text
+            bullet_part = ""
+
+        # Parse header: date, location, department
+        date_str, header_part = _extract_date(header_part)
+        loc_str, header_part = _extract_location(header_part)
+        dept_text = _clean_dept(header_part)
+
+        lines.append(f'    <span class="date-range">{date_str}</span>')
+        lines.append('  </div>')
+        if dept_text or loc_str:
+            lines.append('  <div class="exp-sub-row">')
+            if dept_text:
+                lines.append(f'    <span>{dept_text}</span>')
+            if loc_str:
+                lines.append(f'    <span class="location">{loc_str}</span>')
+            lines.append('  </div>')
+
+        # Parse bullets: each line starting with <span class="bullet-summary">
+        bullet_items = []
+        if bullet_part:
+            for bline in bullet_part.split('\n'):
+                bline = bline.strip()
+                # Strip <li>...</li> wrapper if present
+                li_m = re.match(r'<li>(.+)</li>', bline, re.DOTALL)
+                if li_m:
+                    bline = li_m.group(1).strip()
+                if _BS_MARKER in bline:
+                    bullet_items.append(bline)
+
+        if bullet_items:
+            lines.append('  <ul>')
+            for bullet in bullet_items:
+                lines.append(f'    <li>{bullet}</li>')
+            lines.append('  </ul>')
+
+        lines.append('</div>')
+
+    return '\n'.join(lines)
+
+
+def _render_skills_section(tokens: list[HtmlToken]) -> str:
+    """
+    Render skills section.
+    Extracts all bullet-summary spans from any container (<p> or <li>),
+    each becoming a separate .skill-entry div.
+    """
+    lines: list[str] = []
+
+    # Combine all content text
+    full_text = ""
+    for token in tokens:
+        combined = '\n'.join(token.raw_lines)
+        # Strip container tags: <p>, </p>, <li>, </li>, <ul>, </ul>
+        combined = re.sub(r'</?(?:p|li|ul)>', '', combined)
+        if full_text:
+            full_text += '\n'
+        full_text += combined
+
+    full_text = full_text.strip()
+
+    # Extract all bullet-summary pairs using findall
+    # Pattern: <span class="bullet-summary">title:</span> detail text
+    # The detail may contain anything until the next <span class="bullet-summary"> or end of string
+    pairs = re.findall(
+        r'<span class="bullet-summary">(.+?)</span>\s*([^<]*(?:<(?!span class="bullet-summary">)[^<]*)*)',
+        full_text,
+        re.DOTALL,
+    )
+    for summary, detail in pairs:
+        detail = re.sub(r'<br\s*/?\s*>', '', detail).strip()
+        lines.append(
+            f'<div class="skill-entry">'
+            f'<span class="bullet-summary">{summary}</span> {detail}'
+            f'</div>'
+        )
+
+    return '\n'.join(lines)
+
+
+def _render_paragraph_section(tokens: list[HtmlToken]) -> str:
+    """Render a generic paragraph section (e.g., personal summary)."""
+    lines: list[str] = []
+    for token in tokens:
+        if token.type == "paragraph":
+            combined = '\n'.join(token.raw_lines)
+            # Reconstruct <p>...</p> (may be multi-line)
+            p_m = re.search(r'<p>(.+?)</p>', combined, re.DOTALL)
+            if p_m:
+                lines.append(f'<p>{p_m.group(1)}</p>')
+    return '\n'.join(lines)
+
+
+# ── Dispatcher ──
+
+_RENDERER_MAP = {
+    "header": _render_header_section,
+    "education": _render_education_items,
+    "experience": _render_experience_items,
+    "projects": _render_experience_items,  # Same structure as experience
+    "skills": _render_skills_section,
+    "summary": _render_paragraph_section,
+}
+
+
+def _map_html_to_css_classes(html_fragment: str) -> str:
+    """
+    Transform bare HTML tags from markdown-it into semantic CSS classes.
+
+    Pipeline: tokenize → group into sections → per-section render.
+    """
+    tokens = _tokenize(html_fragment)
+    sections = _group_into_sections(tokens)
+
+    output_parts: list[str] = []
+    for section in sections:
+        # Emit section title
+        if section.title:
+            output_parts.append(f'<div class="section-title">{section.title}</div>')
+
+        # Dispatch to appropriate renderer
+        renderer = _RENDERER_MAP.get(section.type, _render_paragraph_section)
+        rendered = renderer(section.tokens)
+        if rendered.strip():
+            output_parts.append(rendered)
+
+    return '\n'.join(output_parts)
+
+
+# ════════════════════════════════════════════════════════
 # PHASE 3: JINJA2 TEMPLATE RENDERING (HTML + CSS)
 # ════════════════════════════════════════════════════════
 
@@ -373,7 +849,8 @@ def _load_css() -> str:
 
 def render_html_layout(html_body: str,
                        snapshot_data: dict,
-                       output_path: Path) -> str:
+                       output_path: Path,
+                       layout_mode: str = "normal") -> str:
     """
     Phase 3: Wrap HTML body fragment in our Jinja2 layout template.
 
@@ -381,9 +858,20 @@ def render_html_layout(html_body: str,
       - <head> with our CSS embedded (inline for portability)
       - A4 @page settings
       - Semantic <body> structure matching our CSS classes
+    
+    Phase 2.5: Map bare HTML tags to CSS class structure before injection.
+
+    Args:
+        html_body: Raw HTML fragment from Phase 2
+        snapshot_data: context_snapshot.json contents
+        output_path: Where to write the rendered HTML
+        layout_mode: "normal" or "compact" (affects CSS spacing)
     """
     env = _import_jinja2()
     css_content = _load_css()
+
+    # Phase 2.5: Transform bare markdown HTML → semantic CSS class structure
+    mapped_body = _map_html_to_css_classes(html_body)
 
     # Extract metadata for template context
     jd_facts = snapshot_data.get("jd_facts", {})
@@ -393,9 +881,12 @@ def render_html_layout(html_body: str,
     # Build header info from snapshot metadata if available
     experiences = snapshot_data.get("user_decisions", {}).get("kept_experiences", [])
 
+    body_class = "compact" if layout_mode == "compact" else ""
+
     template_context = {
         "css_inline": css_content,
-        "body_html": html_body,
+        "body_html": mapped_body,
+        "body_class": body_class,
         "role_title": jd_facts.get("role_title", "Resume"),
         "company": jd_facts.get("company_name", ""),
         "session_id": meta.get("session_id", ""),
@@ -420,6 +911,7 @@ def render_html_layout(html_body: str,
 
 def _generate_inline_layout(ctx: dict) -> str:
     """Fallback layout when no .j2 template file exists."""
+    body_class_attr = f' class="{ctx["body_class"]}"' if ctx.get("body_class") else ""
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -429,7 +921,7 @@ def _generate_inline_layout(ctx: dict) -> str:
 {{{{ ctx['css_inline'] }}}}
 </style>
 </head>
-<body>
+<body{body_class_attr}>
 <div class="page-container">
 {{{{ ctx['body_html'] }}}}
 </div>
@@ -628,7 +1120,8 @@ def render(snapshot_path: str, output_dir: str = None) -> RenderResult:
 
     # === Phase 3: Jinja2 Layout ===
     html_out = out / "tailored_resume.html"
-    html_path = render_html_layout(html_fragment, snapshot_data, html_out)
+    layout_mode = user_prefs.get("layout_mode", "normal")
+    html_path = render_html_layout(html_fragment, snapshot_data, html_out, layout_mode=layout_mode)
     result.html_path = html_path
     result.success = True
 
@@ -639,6 +1132,28 @@ def render(snapshot_path: str, output_dir: str = None) -> RenderResult:
             pdf_result = render_pdf(html_path, str(pdf_out))
             result.pdf_path = pdf_result["path"]
             result.page_count = pdf_result["page_count"]
+
+            # Auto-switch to compact if overflow detected and page_limit is 1
+            page_limit = user_prefs.get("page_limit", 1)
+            if pdf_result["page_count"] > page_limit and layout_mode == "normal":
+                result.warnings.append(
+                    f"PDF is {pdf_result['page_count']} pages (limit: {page_limit}). "
+                    "Auto-switching to compact layout."
+                )
+                layout_mode = "compact"
+                html_path = render_html_layout(
+                    html_fragment, snapshot_data, html_out, layout_mode="compact"
+                )
+                result.html_path = html_path
+                # Re-render PDF with compact layout
+                pdf_result = render_pdf(html_path, str(pdf_out))
+                result.pdf_path = pdf_result["path"]
+                result.page_count = pdf_result["page_count"]
+                if pdf_result["page_count"] > page_limit:
+                    result.warnings.append(
+                        f"Compact layout still {pdf_result['page_count']} pages. "
+                        "Consider reducing content."
+                    )
 
             if "warning" in pdf_result:
                 result.warnings.append(pdf_result["warning"])
