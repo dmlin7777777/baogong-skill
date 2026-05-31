@@ -27,12 +27,12 @@ Analyze a job description and tailor the source resume to match, using isolated 
 
 On first run, **try auto-detection first**:
 1. `Glob **/resume_master.md` in workspace — if found, use it directly
-2. If workspace has `源文件/resume_master.md` or `.workbuddy/memory/MEMORY.md` with a resume path, follow that
+2. If workspace has `resume_master.md` or `.workbuddy/memory/MEMORY.md` with a resume path, follow that
 3. Only if auto-detect fails → ask user to provide their resume file path (.docx preferred, .pdf or .txt acceptable)
 
-**Story library path** (for Mode B capability matching): `{user vault}/01-个人经历/项目故事库.md`
-- Use `Glob **/项目故事库.md` to auto-locate the vault
-- Fallback: ask user for Obsidian vault path
+**Story library path** (for Mode B capability matching): `{vault}/project-story-library.md`
+- Use `Glob **/项目故事库.md` or `Glob **/story-library.md` to auto-locate
+- Fallback: ask user for vault path or story library location
 
 Store the resolved paths in workspace memory. **Never modify the original.**
 
@@ -94,7 +94,7 @@ Phase G3: Delivery & Audit (= Phase 4)
 
 ### 故事库结构
 
-故事库是 Obsidian vault 中的 `01-个人经历/项目故事库.md`，结构如下：
+故事库是一个结构化 Markdown 文件（通常位于 Obsidian vault 或 workspace 中），结构如下：
 
 ```
 ## 项目 N：名称
@@ -119,7 +119,7 @@ Phase G3: Delivery & Audit (= Phase 4)
 **Layer 3 — 深读（读完整 STAR + 追问）**
 对确认入选的项目，读完整子条目。目的：提取真实的 bullet 措辞和量化数据。
 
-❌ **禁止**：一次性读取整个故事库（1137行）→ 浪费 token 且 Agent 注意力衰减。
+❌ **禁止**：一次性读取整个故事库 → 浪费 token 且 Agent 注意力衰减。
 
 ### Phase G1：能力匹配矩阵
 
@@ -332,7 +332,7 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 - 🟡 内容回退/措辞弱化 → **列出差异给用户确认**，由用户决定保留新版还是回退
 - 如果旧简历本身有错误（数字不对、经历过时），新版纠正不算倒退
 
-**反例**：2026-05-30 本 skill 在生成数据分析师简历时，第一次写 PwC WIP 用了"显著缩短"，但故事库和旧版简历都有 "48h→12h" 的具体数据——这就是量化倒退。本条 Protocol 存在的意义就是防止这类问题。
+**反例**：新版简历将旧版的"将处理时间从 X 缩短到 Y"简化为"显著提升效率"，丢失了具体量化数据——这就是量化倒退。本条 Protocol 的意义就是防止这类问题：新版本必须在每个维度上 ≥ 旧版本。
 
 3. 输出审计报告：`{date}_{role}_version_audit.md`，列出所有差异及处理建议
 4. 🔴 STOP — 展示差异给用户确认后再交付
@@ -392,7 +392,7 @@ CSS template: `templates/resume_template.css` (Tech Style, single-column, A4 por
 | 6 | **跳过用户确认直接出最终稿** | 用户没有机会在关键决策点纠正方向 | 每次 CP 必须 WAIT for user confirmation |
 | 7 | **Mode B 把故事库内容改写/润色** | 故事库是面试一致性的唯一保证，改写后问答脱节 | Mode B 只做"选取"和"重组"，不改写原 bullet 含义 |
 | 8 | **用"建议/可以考虑/根据情况"等软化措辞替代明确的 STOP 标记** | LLM 不识别弱措辞，会继续执行 | 必须用 `🔴 STOP` 或 `🛑 CHECKPOINT` 显性标记 |
-| 9 | **生成新版本不与历史版本对比** | 量化数据可能在迭代中丢失（如"48h→12h"变成"显著缩短"） | 每次交付前执行 [[#Step 4e Historical Version Audit]]，量化倒退 → 回退到旧版数字 |
+| 9 | **生成新版本不与历史版本对比** | 量化数据可能在迭代中丢失（如具体数字退化为模糊描述） | 每次交付前执行 [[#Step 4e Historical Version Audit]]，量化倒退 → 回退到旧版数字 |
 | 10 | **用课程/学校标签弱化项目** | "NUS 商业分析项目（BAP）"让人以为是课程 toy，面试官直接打折 | 副标题只写角色身份（"独立开发"/"个人项目"），不写课程编号；地点写城市/国家，不写学校 |
 | 11 | **跳过 Phase 4 反向审计直接交付** | 没有独立 Auditor 的简历 = 没有诚意检查，面试时会被追问打穿 | Phase 4 必须 Writer → Auditor 两个独立调用；Auditor 未跑完不能交付 |
 
