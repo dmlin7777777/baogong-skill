@@ -304,6 +304,32 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 4. Render output (see Rendering section below)
 5. Archive snapshot from `sessions/` to `history/`
 
+#### Step 4e: Historical Version Audit ⭐
+
+**每次生成新简历前，必须与历史版本对比。不允许新版本在量化或措辞上比旧版倒退。**
+
+**执行时机**：Phase 4d 编译完成后、交付用户前。
+
+**操作步骤**：
+1. `find history/ -name "*.html" -o -name "*.md" | sort -r | head -3` — 取最近 3 份历史简历
+2. 逐段对比新简历 vs 最近版本：
+
+| 检查维度 | 方法 | 触发条件 |
+|---|---|---|
+| **量化倒退** | grep 新简历的每个数字（百分比/时长/金额），确认旧版同 bullet 有该数字 | 旧版有量化数据而新版删除了 → 🔴 |
+| **内容回退** | 对比同经历的 bullet 数量和覆盖维度 | 旧版 4 条 bullet 新版 3 条，且缺失的不是刻意删除的 → 🟡 |
+| **措辞弱化** | 对比同 bullet 的动词（如"主导"变"参与"、"设计"变"协助"） | 动词降级且无合理解释 → 🟡 |
+
+**处理规则**：
+- 🔴 量化倒退 → **必须回退到旧版数字**，除非用户明确要求删除
+- 🟡 内容回退/措辞弱化 → **列出差异给用户确认**，由用户决定保留新版还是回退
+- 如果旧简历本身有错误（数字不对、经历过时），新版纠正不算倒退
+
+**反例**：2026-05-30 本 skill 在生成数据分析师简历时，第一次写 PwC WIP 用了"显著缩短"，但故事库和旧版简历都有 "48h→12h" 的具体数据——这就是量化倒退。本条 Protocol 存在的意义就是防止这类问题。
+
+3. 输出审计报告：`{date}_{role}_version_audit.md`，列出所有差异及处理建议
+4. 🔴 STOP — 展示差异给用户确认后再交付
+
 ## Rendering Pipeline
 
 ```
@@ -359,6 +385,7 @@ CSS template: `templates/resume_template.css` (Tech Style, single-column, A4 por
 | 6 | **跳过用户确认直接出最终稿** | 用户没有机会在关键决策点纠正方向 | 每次 CP 必须 WAIT for user confirmation |
 | 7 | **Mode B 把故事库内容改写/润色** | 故事库是面试一致性的唯一保证，改写后问答脱节 | Mode B 只做"选取"和"重组"，不改写原 bullet 含义 |
 | 8 | **用"建议/可以考虑/根据情况"等软化措辞替代明确的 STOP 标记** | LLM 不识别弱措辞，会继续执行 | 必须用 `🔴 STOP` 或 `🛑 CHECKPOINT` 显性标记 |
+| 9 | **生成新版本不与历史版本对比** | 量化数据可能在迭代中丢失（如"48h→12h"变成"显著缩短"） | 每次交付前执行 [[#Step 4e Historical Version Audit]]，量化倒退 → 回退到旧版数字 |
 
 ## Error Handling
 
