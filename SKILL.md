@@ -63,8 +63,8 @@ Simplified pipeline when no specific JD is available. Builds a role-oriented res
 ```
 Phase G1: Capability Matching (replaces Phase 1+2)
   1. Identify target role type from user's description (e.g., 产品/数据/商业分析)
-  2. Read project story library (唯一事实来源) → extract all experiences
-  3. Build capability matching matrix: experience × core role competencies
+  2. Read project story library (唯一事实来源) → follow [[#Story Library Protocol]] for token-efficient extraction
+  3. Build capability matching matrix: experience × core role competencies (numbers MUST come from story library)
   4. Rank experiences by match score
   5. Present selection recommendation to user (CP1)
 
@@ -87,6 +87,65 @@ Phase G3: Delivery & Audit (= Phase 4)
 
 **⚠️ Critical Rule for Mode B**: 
 > **只做提炼，不做扩展。** Even logically reasonable inferences (e.g., "覆盖从需求定义到上线的完整周期") are FORBIDDEN unless explicitly stated in the story library. Only distill and reorganize what already exists.
+
+## Story Library Protocol（Mode B 专用）
+
+故事库是 Mode B 的唯一事实来源。不读故事库 = 不能生成 Mode B 简历。
+
+### 故事库结构
+
+故事库是 Obsidian vault 中的 `01-个人经历/项目故事库.md`，结构如下：
+
+```
+## 项目 N：名称
+│
+├── > 技术栈：...           ← 工具关键词
+├── > 一句话概括：...        ← Phase G1 初筛用这个
+├── ### NA：子项目名         ← 每个子项目 = 一段经历
+│   ├── STAR（S/T/A/R）     ← 简历 bullet 的法定来源
+│   ├── 高频追问准备         ← CP3 量化审计 + Phase 4 审计用
+│   └── 方案选择与决策逻辑    ← 面试深度素材
+└── ### 面试高频追问          ← 项目级追问
+```
+
+### 读取策略（Token高效，分 3 层递进）
+
+**Layer 1 — 扫描标题（`grep "^## 项目"`）**
+只读项目编号和名称，不看正文。目的：知道故事库覆盖了哪些经历、缺失哪些。
+
+**Layer 2 — 初筛匹配（读 `> 一句话概括` + `> 技术栈`）**
+对目标岗位相关的项目，只读一行概括。目的：2 秒判断这个项目要不要放进简历。
+
+**Layer 3 — 深读（读完整 STAR + 追问）**
+对确认入选的项目，读完整子条目。目的：提取真实的 bullet 措辞和量化数据。
+
+❌ **禁止**：一次性读取整个故事库（1137行）→ 浪费 token 且 Agent 注意力衰减。
+
+### Phase G1：能力匹配矩阵
+
+从 Layer 2 的一行概括中提取每段经历的：
+- **核心动作**（做了什么）
+- **量化结果**（数字是什么）
+- **工具**（技术栈关键词）
+
+然后对目标岗位的核心能力（如数据分析师 = SQL/Python/可视化/AB测试/ETL）逐项打分。**匹配矩阵中的数字必须来自故事库，不能编造。**
+
+### Phase G2 CP3：量化审计
+
+故事库中每个子项目的 STAR "R" 行是量化数据的唯一来源。CP3 追问时：
+- 如果故事库已经有数字 → 直接用
+- 如果故事库没数字 → 问用户
+- 如果用户也答不出 → 用过程描述替代，**绝不编造**
+
+### Phase G3 审计：故事库交叉验证
+
+Auditor 逐条检查每个 resume bullet：“这个 bullet 能在故事库中找到对应证据吗？”
+
+| 审计结果 | 含义 | 处理 |
+|---|---|---|
+| ✅ 故事库有对应 STAR | 证据充足 | 通过 |
+| ⚠️ 故事库有对应条目但 bullet 措辞偏离 | 需要修正 | 回退 CP4 重写 |
+| 🔴 故事库无此条目 | 无法面试辩护 | **删除该 bullet** 或让用户手动补故事库 |
 
 ## Five Core Principles
 
