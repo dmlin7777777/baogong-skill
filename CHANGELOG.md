@@ -2,19 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.3] - 2026-05-31
+
+### Added
+- **Historical Version Audit (Step 4e)** — compare new resume vs last 3 versions before delivery
+  - Three check dimensions: quantification regression 🔴, content loss 🟡, wording weakening 🟡
+  - Example: "显著缩短" → "48h→12h" prevention — concrete case from 2026-05-30 session
+- **Anti-Pattern #9**: "never skip historical comparison"
+
+## [3.0.2] - 2026-05-31
+
+### Added
+- **Story Library Protocol** — 3-layer token-efficient extraction for Mode B
+  - Layer 1: grep `^## 项目` headers
+  - Layer 2: read `> 一句话概括` for initial matching
+  - Layer 3: read full STAR + interview Q&A for selected items
+- **Audit cross-validation table**: every resume bullet checked against story library (✅/⚠️/🔴)
+
 ## [3.0.1] - 2026-05-31
 
 ### Added
-- **9 STOP/CHECKPOINT visual markers** at all interaction checkpoints (Phase 3 entry, CP1/CP3/CP4, Mode B G2 CPs, audit rollback) to prevent autonomous drift
-- **Anti-Patterns section** in SKILL.md: 8 explicit prohibitions with rationale and alternatives (fabrication, self-audit, vague fillers, skipping confirmation, etc.)
-- **Auto-detect resume paths**: Glob-based `resume_master.md` discovery + story library path resolution, eliminating redundant "ask user for path" on every run
+- **6-round Darwin optimization**: 74.3 → **90.5** (+16.2)
+- **9 STOP/CHECKPOINT visual markers** at all interaction checkpoints
+- **Anti-Patterns section** in SKILL.md: 9 explicit prohibitions (fabrication, self-audit, vague fillers, skipping confirmation, historical regression, etc.)
+- **Auto-detect resume paths**: Glob-based `resume_master.md` discovery + story library path resolution
 - **Dual-column Error Handling**: primary action + secondary fallback for all 8 error scenarios
-- **Darwin Skill evaluation baseline**: 74.3/100 → 84.6/100 (+10.3)
 
 ### Changed
-- **Resume Input flow**: from "always ask user" to 3-step auto-detection (Glob → workspace memory → ask as last resort)
-- **Error Handling table**: expanded from single "Action" column to "Primary Action + If Primary Fails" dual-column format
-- **README**: updated with Darwin optimization results and v3.0 quality improvements
+- **Resume Input flow**: "always ask user" → 3-step auto-detection
+- **Error Handling table**: single "Action" → "Primary + If Fails" dual-column
+- **README/CHANGELOG**: updated with optimization results
 
 ## [3.0.0] - 2026-04-15
 

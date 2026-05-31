@@ -283,11 +283,10 @@ The CSS is designed for **A4 portrait, single page**. Adjust spacing variables t
 ## Version History
 
 ### v3.0 (Current) — Multi-Agent + Rendering Pipeline + Darwin Optimized
-- **Darwin Skill 9-dim evaluation**: 74.3 → **84.6** (+10.3)
-- **9 STOP/CHECKPOINT markers** added to prevent autonomous drift
-- **Anti-Patterns section** (8 prohibitions) — never fabricate, never self-audit, never skip user confirmation
-- **Auto-detect resume paths**: Glob `resume_master.md` + story library path resolution
-- **Dual-column error handling**: primary action + secondary fallback for all 8 error scenarios
+- **Darwin Skill 9-dim evaluation**: 74.3 → **90.5** (+16.2)
+- **Historical version audit** (Step 4e): prevents quantification regression by comparing against last 3 versions
+- **Story library protocol**: 3-layer token-efficient extraction + cross-validation in audit
+- **9 STOP/CHECKPOINT markers** + 2 delivery gates to prevent autonomous drift
 - **Pseudo-multi-agent architecture** with isolated Scout / Architect / Auditor nodes
 - **Blackboard state protocol** via `context_snapshot.json` (4-layer schema v1.1)
 - **HTML rendering pipeline** with Jinja2 templates + CSS styling
