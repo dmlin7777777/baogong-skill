@@ -1,15 +1,13 @@
 """
-Resume Tailor — Unified CLI Entry Point (v2.1)
+Resume Tailor — Unified CLI Entry Point (v3.3)
 
 Pure argparse layer. All business logic lives in engine.py,
 jd_parser.py, diff_audit.py, and ats_checker.py.
 
 Usage:
     python main.py parse --file jd.txt --resume resume.docx --json
-    python main.py read-structured --resume resume.docx
     python main.py diff --source-docx source.docx --tailored-docx tailored.md --json
     python main.py ats --resume tailored.md --keywords "Python,SQL" --region north_america --json
-    python main.py full --jd jd.txt --resume resume.docx --region north_america --json
 """
 
 import argparse
@@ -46,19 +44,6 @@ def cmd_parse(args):
     else:
         print_report(analysis)
 
-
-def cmd_read_structured(args):
-    """Structure-aware resume reading."""
-    from diff_audit import read_docx_structured, get_structure_summary
-
-    structured = read_docx_structured(args.resume)
-    summary = get_structure_summary(structured)
-
-    if args.json:
-        print(json.dumps(summary, ensure_ascii=False, indent=2))
-    else:
-        for item in structured:
-            print(f"[{item['style']}] {item['text']}")
 
 
 def cmd_diff(args):
@@ -127,31 +112,13 @@ def cmd_ats(args):
         print(output)
 
 
-def cmd_full(args):
-    """Full pipeline: parse JD → read resume structure → ATS check."""
-    from engine import run_full_pipeline
-
-    keywords = [k.strip() for k in args.keywords.split(",") if k.strip()] if args.keywords else []
-    result = run_full_pipeline(
-        jd_path=args.jd,
-        resume_path=args.resume,
-        keywords=keywords,
-        region=args.region,
-        json_output=args.json,
-    )
-
-    if args.json:
-        print(json.dumps(result, ensure_ascii=False, indent=2))
-    else:
-        print(result)
-
 
 # ─── Argparse setup ───
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Resume Tailor v2.1 — Unified CLI",
+        description="Resume Tailor v3.3 — Unified CLI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -163,12 +130,6 @@ def main():
     p_parse.add_argument("--json", action="store_true", help="JSON output")
     p_parse.add_argument("--resume", type=str, default=None, help="Resume file")
     p_parse.set_defaults(func=cmd_parse)
-
-    # ─── read-structured ───
-    p_read = subparsers.add_parser("read-structured", help="Structure-aware resume read")
-    p_read.add_argument("--resume", required=True, help="Resume .docx path")
-    p_read.add_argument("--json", action="store_true")
-    p_read.set_defaults(func=cmd_read_structured)
 
     # ─── diff ───
     p_diff = subparsers.add_parser("diff", help="Diff source vs tailored")
@@ -195,15 +156,6 @@ def main():
     p_ats.add_argument("--json", action="store_true")
     p_ats.add_argument("--output", default="", help="Output file path")
     p_ats.set_defaults(func=cmd_ats)
-
-    # ─── full ───
-    p_full = subparsers.add_parser("full", help="Full pipeline")
-    p_full.add_argument("--jd", required=True, help="JD file path")
-    p_full.add_argument("--resume", default=None, help="Resume file path")
-    p_full.add_argument("--keywords", default="", help="Comma-separated keywords")
-    p_full.add_argument("--region", default="global", help="Target region")
-    p_full.add_argument("--json", action="store_true")
-    p_full.set_defaults(func=cmd_full)
 
     args = parser.parse_args()
     args.func(args)
