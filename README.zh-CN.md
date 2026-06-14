@@ -8,7 +8,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-**v3.3 — 渲染管线重构 (HTML/MD 双主交付 + 瑞士国际主义风)
+**v3.4 — 6 场景路由 + 编造阻断门 + 压测修复
 
 [更新日志 →](CHANGELOG.md)
 

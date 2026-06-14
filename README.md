@@ -8,7 +8,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-**v3.3 — Rendering Pipeline Refactor (HTML+MD Dual Delivery + Swiss Design)**
+**v3.4 — 6-Scenario Routing + Fabrication Gate + Stress-Tested Pipeline**
 
 [Changelog →](CHANGELOG.md)
 
