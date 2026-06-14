@@ -65,6 +65,12 @@ Every bullet must follow: **Action + Object + Measurable Outcome**
 ### 🪞 Reverse Audit (Physically Isolated)
 Before delivery, an independent Auditor persona reviews every bullet. Writer and Auditor are separate LLM calls — no "self-audit" shortcuts.
 
+### 🚧 Fabrication Gate (v3.4)
+10 hard truthfulness rules checked against every bullet before delivery. Any violation → full draft ROLLBACK. Numbers must have sources, verbs must match evidence, skills must have usage proof, timelines can't contradict.
+
+### 🔖 Information Status Marking (v3.4)
+Every claim is tracked as `[✓]` confirmed (user-verified), `[?]` pending (extracted but unverified), or `[~]` inferred (model-derived). Inferred content auto-escalates audit severity and is **forbidden** in final deliverables.
+
 ### ⏳ Fact Conservation
 Work experiences stay in **strict reverse chronological order**. No reordering by relevance — only keep or hide.
 
@@ -78,7 +84,7 @@ IELTS 7.5 ≈ CET-6 550+. The system maps credentials across regions and keeps t
 
 ## Architecture: LLM-as-Orchestrator + Blackboard State
 
-Resume Tailor v3.3 runs as an **LLM-as-orchestrator** skill. The LLM reads `SKILL.md`, advances through phases, and calls `scripts/` tools as needed. No Python process drives the LLM — the LLM drives the Python tools.
+Resume Tailor v3.4 runs as an **LLM-as-orchestrator** skill. The LLM reads `SKILL.md`, advances through phases, and calls `scripts/` tools as needed. No Python process drives the LLM — the LLM drives the Python tools.
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -121,9 +127,9 @@ All state lives in `snapshot.json` — a layered JSON document:
 
 ---
 
-## Rendering Pipeline (v3.3)
+## Rendering Pipeline
 
-v3.3 uses a **zero-dependency template substitution pipeline**:
+Zero-dependency template substitution pipeline:
 
 ```
 Phase 4a Writer Output (Markdown)
@@ -155,19 +161,27 @@ Filled HTML (Swiss International Style)
 
 ## How It Works
 
-```
-Phase 1 — Context & Research     Scout parses JD, extracts requirements, researches market
-Phase 2 — Semantic Matching      Architect matches experiences against JD, proposes selections
-Phase 3 — Interactive Adjustment User confirms, fills gaps, quantifies metrics
-Phase 4 — Audit & Delivery       Independent auditor reviews, renderer produces output
-```
+### 6-Scenario Routing (v3.4)
+
+The system auto-detects your scenario and routes to the appropriate pipeline:
+
+| Scenario | Input | Pipeline |
+|----------|-------|----------|
+| **A** | JD + resume | Full tailoring (Scout → Architect → Auditor → Render) |
+| **A2** | Multiple JDs + resume | Batch tailoring with shared fact base + cross-JD comparison |
+| **B** | Resume only | Story library-based polishing (no JD matching) |
+| **C** | JD only, no resume | Advisory output (gap analysis + preparation guidance) |
+| **D** | Insufficient info | Guided intake (structured questions before proceeding) |
+| **E** | Fabrication request | Hard refusal with explanation |
+
+### Pipeline Phases (Mode A)
 
 | Phase | Node | What Happens | Your Role |
 |-------|------|-------------|-----------|
-| **1. Context** | **Scout** | JD requirement extraction, company research, risk assessment | Review & confirm |
+| **1. Context** | **Scout** | JD requirement extraction, company research, interview intel search | Review & confirm |
 | **2. Match** | **Architect** | Direct + implicit matching with confidence levels | Review match table |
 | **3. Adjust** | **Architect** | Experience selection, gap filling, quantification, wording upgrade | Confirm or override each suggestion |
-| **4. Audit** | **Auditor** | Physically isolated compliance check + reviewer persona challenge | Final review |
+| **4. Audit** | **Auditor** | Compliance check + fabrication gate + reviewer persona challenge | Final review |
 
 Every suggestion comes with a **concrete recommendation** — you confirm or override, never decide from scratch.
 
@@ -194,9 +208,9 @@ resume-tailor/
 ├── SKILL.md                              # Skill definition & workflow routing table
 ├── README.md                             # This file
 ├── README.zh-CN.md                       # Chinese documentation
-├── requirements.txt                      # Python dependencies (v3.3 — zero-dependency rendering)
+├── requirements.txt                      # Python dependencies (zero-dependency rendering)
 ├── schemas/
-│   └── snapshot_schema_v1.json           # Snapshot schema (v1.1 with nuance_buffer)
+│   └── snapshot_schema_v1.json           # Snapshot schema (v1.2 with info_status + multi-JD)
 ├── templates/
 │   ├── resume_swiss.html                 # Swiss International Style template (CSS variable-driven)
 │   └── state_update_template.md          # STATE_UPDATE JSON template & examples
@@ -210,14 +224,13 @@ resume-tailor/
 │   └── utils.py                          # Shared utilities (JSON validation, PII, etc.)
 ├── references/
 │   ├── writer_guide.md                   # Writer node instruction manual (Phase 1 + CP1-CP5)
-│   ├── auditor_guide.md                  # Auditor node instruction manual
+│   ├── auditor_guide.md                  # Auditor node instruction manual (incl. Fabrication Gate B-3)
 │   ├── interaction_checkpoints.md        # Checkpoint details for Phase 3
+│   ├── reverse_audit_checklist.md        # B-2/B-3 audit checklist + Mode B rules
+│   ├── formatting_rules.md              # Operational formatting guidance (contact, bullets, skills)
 │   └── audit_log_template.md             # Audit log output template
 ├── sessions/                             # Active session snapshots (.gitignore'd)
-├── history/                              # Archived sessions post-completion
-└── docs/
-    └── plans/
-        └── 2026-04-15-v3-architecture-design.md  # Full architecture design doc
+└── history/                              # Archived sessions post-completion
 ```
 
 </details>
@@ -226,13 +239,12 @@ resume-tailor/
 <summary>⚙️ Dependencies</summary>
 
 ```bash
-# Core dependencies (v3.3 — zero-dependency rendering)
+# Core dependencies (zero-dependency rendering)
 python-docx>=0.8.11          # .docx reading and writing
 pdfplumber>=0.10.0           # PDF reading (recommended — best quality)
 
-# Removed in v3.3
+# Removed in v3.3+
 #   jinja2, markdown-it-py, python-markdown, weasyprint, pypandoc
-#   — replaced by zero-dependency template substitution pipeline.
 
 # Optional fallbacks (auto-detected at runtime)
 #   PyPDF2>=3.0.0            — Python native PDF fallback, no system dependency
@@ -250,20 +262,23 @@ pdfplumber>=0.10.0           # PDF reading (recommended — best quality)
 <summary>🔧 Script Usage</summary>
 
 ```bash
+# Windows: all scripts require UTF-8 mode for CJK text
+# Add -X utf8 flag or set PYTHONUTF8=1 environment variable
+
 # JD feature extraction
-python scripts/main.py parse jd.txt --file --resume resume.docx --json
+python -X utf8 scripts/main.py parse jd.txt --file --resume resume.docx --json
 
 # Diff source vs tailored resume
-python scripts/main.py diff --source resume_master.md --tailored tailored.md --json
+python -X utf8 scripts/main.py diff --source resume_master.md --tailored tailored.md --json
 
 # ATS compatibility check
-python scripts/main.py ats --resume tailored.md --keywords "Python,SQL" --region north_america
+python -X utf8 scripts/main.py ats --resume tailored.md --keywords "Python,SQL" --region north_america
 
 # Render Markdown draft to Swiss-style HTML
-python scripts/renderer.py render --draft draft.md --output output/
+python -X utf8 scripts/renderer.py render --draft draft.md --output output/
 ```
 
-**Note:** `engine.py` provides the `Snapshot` class and `parse_state_update()` — called by the LLM via `python -c "from scripts.engine import Snapshot; ..."`. There is no Python-driven orchestration loop. The LLM reads `SKILL.md`, advances through phases, and calls scripts as tools.
+**Note:** `engine.py` provides the `Snapshot` class and `parse_state_update()` — called by the LLM as tools. There is no Python-driven orchestration loop. The LLM reads `SKILL.md`, advances through phases, and calls scripts as needed.
 
 </details>
 
@@ -296,6 +311,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| **v3.4** | 2026-06 | 6-scenario routing, fabrication gate, info status marking, multi-JD batch, stress-tested pipeline |
 | **v3.3** | 2026-06 | 3-tier web search, zero-dep rendering, Swiss HTML template, DOCX removed |
 | **v3.2** | 2026-05 | Onboarding system, Agent anti-patterns (A1–A7), Darwin 76→92 |
 | **v3.1** | 2026-05 | Init-A/B, story library, historical version audit, Darwin 74→91 |
