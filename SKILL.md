@@ -39,6 +39,19 @@ Analyze a job description and tailor the source resume to match, using isolated 
 - "还有一个 JD 也帮我做"（Mode A 完成后追加）
 - "batch tailor for these JDs" / "compare these roles"
 
+**Scenario C (JD-Only):**
+- 用户提供 JD 但没有简历 → 自动检测（resume_master.md 不存在 + 有 JD 输入）
+- "帮我分析一下这个 JD 要什么" / "这个岗位需要什么能力"
+- "analyze this JD" / "what does this role require"
+
+**Scenario D (信息不足):**
+- 自动检测（输入 < 20 字且不含关键词）
+- 不需要触发词——由 Mode Detection 自动路由
+
+**Scenario E (造假阻断):**
+- 自动检测（用户意图包含编造/虚构/捏造关键词）
+- 🔴 硬门控，优先级最高，先于所有 Mode 判断
+
 **Mode B (General-Purpose):**
 - "帮我针对产品岗位生成一个通用性的简历"
 - "做个通用版简历" / "生成XX方向的简历"
@@ -211,21 +224,28 @@ Store the resolved paths in workspace memory. **Never modify the original.**
 
 ## Mode Detection Protocol（先于 Operating Modes 执行）
 
-在判断进入 Mode A / A2 / B 之前，执行以下决策树：
+执行以下决策树判断路由。**优先检测 E（造假阻断）和 D（信息不足），再判断 A/A2/B/C。**
 
 ```
 用户输入到达
     │
-    ├─ 包含完整 JD 文本（≥ 50 字且含职责/要求描述）
-    │    → 直接进入 Mode A
+    ├─ 🔴 E-Check：用户意图包含造假请求（见下方 Scenario E 定义）
+    │    → 立即进入 Scenario E 阻断流程，不进入任何 Mode
     │
-    ├─ 包含 **多份 JD**（用户提供 ≥2 份 JD 或明确说「帮我比较这几个岗位」）
-    │    → 进入 Mode A2（多 JD 批量定制）
+    ├─ 🟡 D-Check：输入信息严重不足（< 20 字且无 JD/简历/方向词）
+    │    → 进入 Scenario D 信息收集流程
+    │
+    ├─ 有 JD + 有简历（resume_master.md 存在）
+    │    ├─ 单份 JD → Mode A
+    │    └─ 多份 JD（≥2 份或用户说「帮我比较」）→ Mode A2
+    │
+    ├─ 有 JD + 无简历（resume_master.md 不存在）
+    │    → Scenario C（JD 分析 + 引导建简历）
     │
     ├─ 包含 URL（http/https 开头）
-    │    → WebFetch 获取内容；字数 ≥ 50 字 → Mode A；失败或内容不足 → 走「输入模糊」分支
+    │    → WebFetch 获取内容；字数 ≥ 50 字 → 按上方「有 JD」分支判断；失败 → 走「输入模糊」分支
     │
-    ├─ 只有职位名称或方向词（如「数据分析师」「产品岗」< 50 字）
+    ├─ 只有职位名称或方向词（< 50 字）
     │    → 输出「我检测到的是职位方向，没有具体 JD。
     │         有 JD 可以粘贴，或者直接告诉我你想做哪个方向，我用 Mode B 帮你生成通用简历。」
     │         → 等待用户回复后再判断 Mode
@@ -238,9 +258,103 @@ Store the resolved paths in workspace memory. **Never modify the original.**
 
 **Mode A → A2 升级路径**：用户在 Mode A 完成第一份简历后说「还有一个 JD 也帮我做」→ 自动切换到 A2 流程，复用已有事实底稿。
 
+### Scenario C: JD-Only（有 JD 无简历）
+
+用户提供了 JD 但没有简历（`resume_master.md` 不存在且用户未提供任何简历文件）。
+
+**与 Init-A 的区别**：Init-A 是"用户没有格式化简历但有经历可录入"。Scenario C 是"用户先拿到 JD，想知道要准备什么，再决定怎么写简历"。
+
+**Flow**:
+
+```
+Step C1: JD 需求分析（复用 Phase 1 Scout）
+  - 提取 JD 的 hard/soft requirements、capability clusters、ATS keywords
+  - 执行 S1 面经搜索（如果公司已知）
+  - 产出「岗位需求清单」：每项需求标注优先级（必须/加分/锦上添花）
+
+Step C2: 能力缺口预判
+  - 输出：「以下是这个岗位的核心要求，你可以对照看看自己有哪些：」
+  - 逐项列出需求，让用户标注 ✅有 / ❌没有 / 🤔不确定
+  - 🔴 STOP：等待用户回复
+
+Step C3: 路由决策
+  - 用户标注完成后：
+    ├─ ✅ 命中率 ≥ 50% → 「你的匹配度不错，我们来创建简历。」→ 进入 Init-A，完成后自动进入 Mode A
+    ├─ ✅ 命中率 < 50% → 「这个岗位和你的背景差距较大，建议：(1) 继续做，突出可迁移能力 (2) 换一个更匹配的方向」
+    └─ 用户选择继续 → Init-A → Mode A
+```
+
+### Scenario D: 信息不足（输入模糊或极度不足）
+
+用户输入过于模糊，无法判断任何 Mode。
+
+**触发条件**：输入 < 20 字 且 不包含 JD/简历/方向关键词。例如："帮我弄一下"、"简历"、"resume"。
+
+**Flow**:
+
+```
+输出：「我需要更多信息来帮你。请告诉我：
+  1. 你有目标岗位的 JD 吗？（有 → 粘贴 JD 文本或链接）
+  2. 你有现成的简历吗？（有 → 提供文件路径或粘贴内容）
+  3. 你想做什么？
+     - 针对特定岗位优化简历 → 需要 JD + 简历
+     - 做个通用方向简历 → 需要简历 + 目标方向
+     - 从头创建简历 → 我来引导你
+     - 分析一个 JD 的要求 → 只需要 JD」
+→ 等待用户回复后重新进入 Mode Detection
+```
+
+**约束**：Scenario D 最多触发一次。用户第二次回复仍然模糊 → 默认进入 Init-A（从头创建简历），不再追问。
+
+### Scenario E: 造假阻断（用户要求编造内容）
+
+**🔴 硬门控 — 在 Mode Detection 阶段拦截，不进入任何工作流程。**
+
+**触发关键词**（中/英）：
+- "帮我编一些经历" / "帮我捏造" / "没做过但帮我写上" / "虚构一段实习"
+- "fabricate experience" / "make up work history" / "fake internship"
+- "帮我把数字夸大一点" / "编几个数据" / "随便写个数字"
+- 任何明确要求添加用户未经历过的工作、项目、技能、证书的意图
+
+**阻断响应**：
+
+```
+🔴 我无法帮你编造简历内容。原因：
+
+1. **面试风险**：编造的经历在行为面试中会被追穿，直接淘汰
+2. **背调风险**：许多公司在发 offer 前做背景调查，虚假经历 = 撤回 offer + 行业黑名单
+3. **法律风险**：部分地区（如新加坡）伪造资质属于刑事犯罪
+
+**我能帮你做的**：
+- 用你真实的经历，通过更好的措辞和结构来提升竞争力
+- 挖掘你忽略的可迁移能力（很多人低估了自己的经验）
+- 对缺口给出诚实评估，帮你决定是否值得投递
+
+要继续用真实经历来做简历吗？
+```
+
+→ 用户确认继续 → 重新进入 Mode Detection（不含 E-Check，避免死循环）
+→ 用户坚持造假 → 终止 session，不产出任何交付物
+
+**边界判断**：
+- "帮我美化一下措辞" ≠ 造假 → 正常进入 Mode A/B
+- "这个项目我参与度不高，但想写得好看点" ≠ 造假 → 正常进入，CP4 中用 Evidence-Based Verb Grading 控制动词等级
+- "帮我加一段没做过的实习" = 造假 → 🔴 阻断
+
+---
+
 ## Operating Modes
 
-Resume Tailor has two operating modes, determined by whether a JD is provided:
+Resume Tailor has six scenarios, determined by input conditions:
+
+| Scenario | 输入条件 | 产出 |
+|----------|---------|------|
+| **Mode A** | 简历 + 单个 JD | 定制简历 + 审计报告 + 面试准备 |
+| **Mode A2** | 简历 + 多个 JD | 多份定制简历 + 跨 JD 差异对比表 |
+| **Mode B** | 仅简历、无 JD | 通用方向简历 |
+| **Scenario C** | 仅 JD、无简历 | JD 需求分析 → 引导建简历 → Mode A |
+| **Scenario D** | 信息严重不足 | 信息收集 → 重新路由 |
+| **Scenario E** | 用户要求造假 | 🔴 阻断 + 正向引导 |
 
 ### Mode A: JD-Targeted（有 JD 定制）
 
