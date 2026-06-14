@@ -8,9 +8,33 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-**v3.0 — Pseudo-Multi-Agent + Blackboard Architecture + HTML Rendering Pipeline**
+**v3.2 — Darwin 5-Round Optimized (92/100) + Onboarding System + Agent Anti-Patterns**
 
 </div>
+
+---
+
+## What's New in v3.2
+
+**Darwin Skill 5-round optimization: 76 → 92 (+16)** across the 9-dimension SkillLens rubric.
+
+### New: Onboarding System
+First-time users no longer hit a wall. Two guided initialization paths:
+
+- **Init-A (Master Resume)**: Auto-detect existing resume files → structured `resume_master.md` via 5-round guided questionnaire if starting from scratch
+- **Init-B (Story Library)**: Per-experience STAR + quantification + interview prep recording, triggered when Mode B needs it or CP3 quantification fails
+
+### New: Agent Execution Anti-Patterns
+7 dedicated A1–A7 rules preventing LLM-specific mistakes: Writer/Auditor isolation violation, MODE misjudgment without confirmation, STATE_UPDATE silent failure, Phase order reordering, and empty web_search calls.
+
+### New: CP4 Wording Boundary
+Hard boundary table — what's allowed (verb replacement, tone adjustment, bullet restructuring) vs forbidden (adding facts not in source, fabricating metrics, inventing experience for JD alignment).
+
+### Improved: Mode Detection
+≥50-char threshold distinguishes real JDs from vague role names, with mandatory confirmation for ambiguous input.
+
+### Improved: Error Handling
+All 9 error cases now have concrete action instructions instead of soft language. New `snapshot.json` corruption recovery with backup-and-rebuild flow.
 
 ---
 
@@ -282,7 +306,22 @@ The CSS is designed for **A4 portrait, single page**. Adjust spacing variables t
 
 ## Version History
 
-### v3.0 (Current) — Multi-Agent + Rendering Pipeline + Darwin Optimized
+### v3.2 (Current) — Darwin 5-Round Optimization + Onboarding System
+- **Darwin SkillLens 9-dim**: 76 → **92** (+16) via 5-round optimization cycle
+- **Onboarding Check**: Global pre-flight gate — `resume_master.md` missing → Init-A before anything else
+- **Init-A (Master Resume)**: 3 intake paths (paste/file/5-round questionnaire) → structured `resume_master.md`
+- **Init-B (Story Library)**: Guided per-experience STAR recording with quantification + interview prep
+- **Agent Execution Anti-Patterns (A1–A7)**: LLM-specific error prevention (isolation violations, silent failures, order reordering)
+- **CP4 Wording Boundary**: Explicit table of allowed (verb/tone/structure) vs forbidden (fabrication, scope inflation) edits
+- **Mode Detection Protocol**: ≥50-char threshold + mandatory confirmation for ambiguous JD input
+- **Story library integration in Mode A**: CP3 quantification priority chain (story lib > user reply > process description)
+- **Required permissions declaration** in frontmatter (Read/Write/Glob/WebFetch/WebSearch/Bash)
+- **Error handling concretized**: All 9 error cases → specific action instructions; snapshot corruption backup-and-rebuild flow
+
+### v3.1 — Onboarding + Story Library Mode A Integration
+- Init-A (Master Resume creation) + Init-B (Story Library creation)
+- Mode A story library access for CP3 quantification backup
+- Version bump after real execution simulation exposed missing initialization path
 - **Darwin Skill 9-dim evaluation**: 74.3 → **90.5** (+16.2)
 - **Historical version audit** (Step 4e): prevents quantification regression by comparing against last 3 versions
 - **Story library protocol**: 3-layer token-efficient extraction + cross-validation in audit
