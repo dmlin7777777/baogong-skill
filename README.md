@@ -8,9 +8,35 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-**v3.2 — Darwin 5-Round Optimized (92/100) + Onboarding System + Agent Anti-Patterns**
+**v3.3 — Structured Web Search (Interview Intel + Company Culture + Business Signals)**
 
 </div>
+
+---
+
+## What's New in v3.3
+
+**Phase 1 upgraded from vague "market research" to a 3-tier structured web search strategy:**
+
+### S1 — Interview Experience Mining
+Searches for `"{Company} {Role} interview experience"` / `"{Role} interview questions"` patterns to extract:
+- What interviewers actually ask (not what the JD says)
+- High-frequency checkpoints and hidden requirements
+- → Drives CP3 quantification direction and makes Phase 4c mock questions authentic
+
+### S2 — Company Culture & Real Work
+Searches for `"Working at {Company} as {Role}"` / `"{Company} tech stack"` to extract:
+- Actual tech stack (often different from JD requirements)
+- Team style and cultural keywords
+- → Calibrates Phase 2 skill matching weights and CP4 cultural tone slider
+
+### S3 — Business Signals
+Searches for `"{Company} business focus"` / `"{Company} org changes"` to extract:
+- Revenue priorities, new product lines, org restructuring
+- → Feeds `risk_warnings` (flag contracting departments) and `capability_clusters` targeting
+
+### Delivery
+Each search tier's output lands on a specific downstream node (no empty searches — enforced by updated A6 anti-pattern). Extracted insights saved as `{date}_{company}_{role}_interview_intel.md` in `history/`.
 
 ---
 
@@ -306,7 +332,14 @@ The CSS is designed for **A4 portrait, single page**. Adjust spacing variables t
 
 ## Version History
 
-### v3.2 (Current) — Darwin 5-Round Optimization + Onboarding System
+### v3.3 (Current) — Structured Web Search Strategy
+- **3-tier search**: S1 interview experience mining → S2 company culture/real work → S3 business signals
+- **Interview intel delivery**: `{date}_{company}_{role}_interview_intel.md` stored in `history/`
+- **Phase 4c integration**: Mock interview questions now sourced from real interview experiences (S1)
+- **A6 anti-pattern updated**: Every search round must land on a specific downstream node or don't run
+- **CP3 quantification targeting**: Quantification questions informed by what interviewers actually ask
+
+### v3.2 — Darwin 5-Round Optimization + Onboarding System
 - **Darwin SkillLens 9-dim**: 76 → **92** (+16) via 5-round optimization cycle
 - **Onboarding Check**: Global pre-flight gate — `resume_master.md` missing → Init-A before anything else
 - **Init-A (Master Resume)**: 3 intake paths (paste/file/5-round questionnaire) → structured `resume_master.md`
