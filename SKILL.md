@@ -1,14 +1,13 @@
 ---
 name: resume-tailor
-description: "针对岗位 JD 定制简历，或生成通用方向简历。分析 JD 关键词、匹配源简历、交互式调整建议、反向诚意审计。触发词：调简历、tailor resume、优化简历、生成简历、通用简历、简历定制、resume for this JD"
+description: "针对岗位 JD 定制简历，或生成通用方向简历。分析 JD 关键词、匹配源简历、交互式调整建议、反向诚意审计。HTML（瑞士国际主义风）+ Markdown 双主交付，支持面经联网搜索。触发词：调简历、tailor resume、优化简历、生成简历、通用简历、简历定制、resume for this JD"
 version: "3.3"
 required_permissions:
   - Read    # 读取源简历、故事库、JD 文本
   - Write   # 写入定制后简历、snapshot、history/
   - Glob    # 自动定位 resume_master.md 和故事库文件
   - WebFetch # 抓取 JD URL
-  - WebSearch # 市场调研
-  - Bash    # pandoc/weasyprint 渲染、diff_audit.py/ats_checker.py 脚本
+  - WebSearch # 市场调研 + 面经搜索
 ---
 
 # Resume Tailor v3
@@ -360,7 +359,7 @@ engine.py (Orchestrator)
 │   ├── Parse STATE_UPDATE JSON from output
 │   ├── Deep merge into snapshot
 │   └── Check rollback conditions (🔴 major issues?)
-├── Render final deliverables
+├── Render final deliverables (MD + HTML via templates/resume_swiss.html)
 └── Archive: sessions/ → history/
 ```
 
@@ -519,10 +518,28 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 1. Run `scripts/diff_audit.py` (source vs tailored change evidence)
 2. Run `scripts/ats_checker.py` (ATS compatibility score)
 3. Compile final audit log combining all sources
-4. Render output (see Rendering section below)
-5. Archive snapshot from `sessions/` to `history/`
+4. Save Markdown draft: `history/{date}_{company}_{role}.md`
+5. Render HTML: 将 MD 内容按节段映射到 `templates/resume_swiss.html` 模板变量 → 写入 `history/{date}_{company}_{role}.html`
+6. Archive snapshot from `sessions/` to `history/`
 
 > 🛑 **DELIVERY GATE**：Phase 4a Writer → Phase 4b Auditor → Phase 4c Reverse Audit → Phase 4d Compile → Phase 4e Historical Audit，**五步缺一不可**。跳过 Auditor = 未完成交付。
+
+#### HTML 模板变量映射
+
+`templates/resume_swiss.html` 使用 `{{VARIABLE}}` 占位符，渲染时替换：
+
+| 模板变量 | 来源 | 说明 |
+|---------|------|------|
+| `{{NAME}}` | resume_master.md 个人信息 → 姓名 | 顶部大标题（300 weight） |
+| `{{SUBTITLE_BLOCK}}` | 目标岗位 / 一句话定位 | 可选，无则留空 |
+| `{{CONTACT_ITEMS}}` | 邮箱、电话、城市、LinkedIn、GitHub | 各一个 `<span>` |
+| `{{SECTION_EXPERIENCE}}` | "工作经历" / "Experience" | 节标题 |
+| `{{EXPERIENCE_BLOCKS}}` | Phase 4a draft 的 experience 节 | 每个经历 = 一个 `.exp-item` |
+| `{{SECTION_EDUCATION}}` | "教育背景" / "Education" | 节标题 |
+| `{{EDUCATION_BLOCKS}}` | 学历信息 | 每个学历 = 一个 `.edu-item` |
+| `{{SECTION_SKILLS}}` | "技能" / "Skills" | 节标题 |
+| `{{SKILL_ENTRIES}}` | 技能列表 | 每个 skill = 一个 `.skill-entry` |
+| `{{META_EXTRA}}` | 公司名、日期等元信息 | 非打印区生成信息 |
 
 #### Output Naming Convention
 
@@ -558,44 +575,62 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 ## Rendering Pipeline
 
 ```
-Layer 3 Draft (Markdown)
-    ↓ Phase 1: Regex Preprocessing
-    "**Summary**: detail" → "<span class='bullet-summary'>Summary:</span> detail"
-    ↓ Phase 2: MD → HTML Fragment
-    markdown-it-py (preferred) / python-markdown (fallback)
-    ↓ Phase 3: Jinja2 Layout
-    CSS-inlined complete HTML document via templates/resume_layout.html.j2
-    ↓ Phase 4a: WeasyPrint → PDF (with page overflow detection)
-    ↓ Phase 4b: pypandoc → DOCX (clean conversion)
+Phase 4a Writer → {date}_{company}_{role}.md （Markdown 草稿，始终产出）
+                    │
+                    ├──→ 直接交付 Markdown
+                    │    可读、可 diff、可进 Git 版本审计
+                    │    这是简历的「源代码」——所有渲染格式由此衍生
+                    │
+                    └──→ 模板替换 → {date}_{company}_{role}.html （主交付物）
+                         模板：templates/resume_swiss.html
+                         瑞士国际主义风，单文件自包含
+                         浏览器直接打开，Ctrl+P → 保存为 PDF
 ```
 
-**渲染降级（按顺序尝试，任一步成功即止）**:
-- WeasyPrint 不可用 → 输出 HTML 文件 + 提示「用浏览器打开，Ctrl+P → 保存为 PDF」；**不报错，不中断流程**
-- pandoc 不可用 → 直接输出 raw Markdown，文件名后缀改为 `.md`；在交付消息里说明「DOCX 暂不可用，已输出 Markdown」
-- markdown-it-py 不可用 → `import markdown as md; md.markdown(text)` 执行 python-markdown 转换；**不抛异常**
+**输出优先级**：
 
-CSS template: `templates/resume_template.css` (Tech Style, single-column, A4 portrait)
+| 格式 | 优先级 | 说明 |
+|------|--------|------|
+| **Markdown** | 主交付物 | Phase 4a Writer 直接产出，可读、可 diff、可进 Git 版本审计。这是简历的「源代码」 |
+| **HTML** | 主交付物 | `templates/resume_swiss.html` 模板渲染，瑞士国际主义风，浏览器直接打开 |
+| PDF | 用户侧生成 | 浏览器打开 HTML → Ctrl+P → 保存为 PDF。**不在 pipeline 内自动执行** |
+| DOCX | 已移除 | v3.3 起不再作为 pipeline 步骤，移除 WeasyPrint / pandoc / pypandoc 依赖 |
+
+**HTML 模板设计原则**（继承自 guizang-ppt Swiss 风格）：
+- 信息优先，零装饰（无阴影、无圆角、无渐变）
+- 字体层级：越大越细（name 300 → body 400 → meta 600）
+- 单文件自包含，CSS 变量驱动，零外部依赖
+- A4 打印优化：`@page { size: A4 }` + `print-color-adjust: exact`
+- 字体：Inter (Latin) + Noto Sans SC / Microsoft YaHei (CJK)
+
+**渲染降级**：
+- 模板文件缺失 → 直接 Markdown 交付，HTML 生成跳过，不报错不中断
+- **零依赖降级**：不需要任何 Python 包（无 markdown-it-py、Jinja2、WeasyPrint、pandoc）
 
 ## Output Structure
 
 ```
 {resume_directory}/
-├── resume_source.docx              # Original — NEVER modified
-├── schemas/snapshot_schema_v1.json # Protocol definition
-├── templates/state_update_template.md
-├── references/                     # Expert node guides
+├── resume_master.md                 # Master resume — NEVER modified
+├── project-story-library.md         # 故事库（Mode B 唯一事实来源）
+├── schemas/snapshot_schema_v1.json  # Protocol definition
+├── templates/
+│   ├── resume_swiss.html            # HTML 模板（瑞士国际主义风，v3.3 新增）
+│   ├── resume_template.css          # 旧版 CSS（保留兼容）
+│   └── state_update_template.md
+├── references/                      # Expert node guides
 │   ├── writer_guide.md
 │   ├── auditor_guide.md
 │   ├── interaction_checkpoints.md
 │   └── audit_log_template.md
-├── sessions/{session_id}/          # Runtime snapshots
+├── sessions/{session_id}/           # Runtime snapshots
 │   └── snapshot.json
 └── history/
-    ├── {date}_{company}_{role}.md           # Tailored Markdown
-    ├── {date}_{company}_{role}.docx         # Final deliverable
-    ├── {date}_{company}_{role}_audit.md     # Audit log
-    ├── {date}_{company}_{role}_snapshot.json# Archived state
-    ├── {date}_{company}_{role}_interview_intel.md  # Phase 1 面经摘要 + 面试重点（Phase 4c 输入）
+    ├── {date}_{company}_{role}.md              # Tailored Markdown（主交付物）
+    ├── {date}_{company}_{role}.html            # Tailored HTML（主交付物，瑞士风）
+    ├── {date}_{company}_{role}_audit.md        # Audit log
+    ├── {date}_{company}_{role}_snapshot.json   # Archived state
+    ├── {date}_{company}_{role}_interview_intel.md  # Phase 1 面经情报
     └── ...
 ```
 
