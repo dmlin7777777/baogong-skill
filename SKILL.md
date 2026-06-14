@@ -1,7 +1,7 @@
 ---
 name: resume-tailor
 description: "针对岗位 JD 定制简历，或生成通用方向简历。分析 JD 关键词、匹配源简历、交互式调整建议、反向诚意审计。触发词：调简历、tailor resume、优化简历、生成简历、通用简历、简历定制、resume for this JD"
-version: "3.2"
+version: "3.3"
 required_permissions:
   - Read    # 读取源简历、故事库、JD 文本
   - Write   # 写入定制后简历、snapshot、history/
@@ -388,15 +388,29 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 
 **Node**: Context Scout
 **Reference**: `references/writer_guide.md` (Phase 1 section)
-**Output**: Populated `jd_facts`, `scout_report`, capability clusters
+**Output**: Populated `jd_facts`, `scout_report`, `interview_intel`, capability clusters
 **Tools**: `scripts/jd_parser.py` (with graceful fallback to LLM), `web_search`
 
 1. Accept JD input (URL → fetch, or text directly)
 2. Ask user: company name? target region?
-3. Run market research (2 targeted web searches)
+3. Run **结构化联网搜索**（3 轮分层，每轮产出必须落地到下游节点）：
+
+| 轮次 | 搜索目标 | 关键词模板 | 产出落地点 |
+|------|---------|-----------|-----------|
+| **S1 — 面经/面试经验** | 面试官真实追问、高频考点、岗位隐性要求 | `"{公司} {岗位} 面经"` `"{公司} 面试 经验"` `"{岗位} 面试题"` `"{公司} {岗位} 面试 准备"` | → CP3 量化追问定向 + Phase 4c mock 问题真实性 |
+| **S2 — 团队/文化/真实工作内容** | 部门风格、实际技术栈、JD 写的 vs 实际做的差距 | `"{公司} {部门} 工作体验"` `"{公司} 技术栈"` `"在 {公司} 做 {岗位} 是怎样体验"` | → Phase 2 技能匹配权重 + CP4 语气 slider 校准 |
+| **S3 — 公司动态/业务重点** | 财报方向、新产品线、组织架构变动 | `"{公司} 202X 业务 重点"` `"{公司} 组织架构 调整"` `"{公司} 财报 分析"` | → `risk_warnings`（业务收缩部门标注）+ `capability_clusters` 定向 |
+
+**搜索执行规则**：
+- **S1 必须执行**：面经是简历定制的关键上下文，直接影响 CP3 追问方向和 Phase 4c mock 问题的真实性
+- **S2 条件执行**：公司知名度高（大厂/独角兽/上市公司）→ 必须执行；小型/冷门公司 → 降级为可选，避免无结果
+- **S3 按需执行**：用户表达了目标公司的长期发展关切，或公司近期有重大新闻/裁员/业务调整时触发
+- **每轮搜索结果必须至少影响一项下游产出**（见"产出落地点"列），否则标记为无效搜索（违反 A6）
+- 搜索结果中提取的关键信息标注 `来源：[搜索关键词]`，存入 `scout_report` 和 `interview_intel`
+
 4. Execute unified context extraction (script + LLM in one pass)
 5. Detect role level, region, document type
-6. Output consolidated context table + risk warnings
+6. Output consolidated context table + `interview_intel` 卡片（面经摘要 + 面试重点提示 + 文化关键词）+ risk warnings
 
 ### Phase 2: Strict Matching
 
@@ -490,12 +504,13 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 #### Step 4c: Auditor Node — Reverse Audit
 
 **Node**: Sincerity Auditor (`auditor_sincerity`)
-**Input**: Draft + interviewer persona + JD context
+**Input**: Draft + interviewer persona + JD context + **Phase 1 `interview_intel`（面经摘要 + 面试重点提示）**
 **Actions**:
-1. Construct senior interviewer persona based on role type
+1. Construct senior interviewer persona based on role type **+ Phase 1 S1 面经中提取的面试官风格/高频考点**
 2. Review every bullet for: AI trace, logical gap, scope inflation, buzzword defense, cultural mismatch
 3. Classify severity: 🔴 MAJOR / 🟡 MINOR / 🟢 INFO
 4. For each 🔴 MAJOR: generate mock interview questions + STAR prep sheets
+   - **Mock 问题优先取材自 Phase 1 S1 面经**：如面经中提到"面试官喜欢追问 AB 测试细节"，则 mock 问题必须覆盖 AB 测试场景
 
 **If 🔴 MAJOR found**: Set flag `["ROLLBACK"]` in STATE_UPDATE → engine reverts to Phase 3. **🔴 STOP — report findings to user before rollback, let user decide which issues to fix.**
 
@@ -580,6 +595,7 @@ CSS template: `templates/resume_template.css` (Tech Style, single-column, A4 por
     ├── {date}_{company}_{role}.docx         # Final deliverable
     ├── {date}_{company}_{role}_audit.md     # Audit log
     ├── {date}_{company}_{role}_snapshot.json# Archived state
+    ├── {date}_{company}_{role}_interview_intel.md  # Phase 1 面经摘要 + 面试重点（Phase 4c 输入）
     └── ...
 ```
 
@@ -610,7 +626,7 @@ CSS template: `templates/resume_template.css` (Tech Style, single-column, A4 por
 | A3 | **MODE 判断后未确认就直接推进** | 用户输入「帮我做个产品简历」→ Agent 自判为 Mode B 直接跑 Phase G1 | 如果用户其实有 JD 待贴，浪费了整个 Phase G1 | 初次 MODE 判断后，先输出「我判断你需要 Mode B（无 JD 通用），对吗？」再推进 |
 | A4 | **量化追问超过 2 轮仍不落地** | CP3 追问 4 轮后用户还是没数字，Agent 继续追问 | 无限追问体验极差且无意义 | 追问满 2 轮无结果 → 立即切换为过程描述，明确告知用户「本条以过程描述呈现，如后续有数据可补充」 |
 | A5 | **STATE_UPDATE 解析失败后静默继续** | JSON parse error → Agent 忽略错误继续下一步 | snapshot 状态不一致，后续所有节点读到的都是脏数据 | JSON 解析失败 → 立即停止，输出原始文本，提示用户「状态同步失败，需要人工确认后继续」 |
-| A6 | **在 Phase 1 执行 web_search 但从不使用结果** | Market research 跑完，但 scout_report 里没有 company/role insight 落地 | 浪费 token + 用户看到"调研了但没用"印象差 | web_search 结果必须至少影响一条 `risk_warnings` 或 `capability_clusters` 输出，否则不跑 |
+| A6 | **web_search 执行了但结果未落地** | 搜索结果未出现在 `scout_report`、`risk_warnings`、`capability_clusters`、或 `interview_intel` 中 | 浪费 token + 用户看到"调研了但没用" | 每轮搜索结果必须至少影响一项下游产出（见 Phase 1 的"产出落地点"列），标注 `来源：[搜索关键词]` |
 | A7 | **历史版本审计（Step 4e）在 4d 之前跑** | Agent 重排了执行顺序「先审计再出稿」 | Step 4e 的输入是 4d 编译完成的草稿，提前跑没有内容可比对 | 严格顺序：4a → 4b → 4c → 4d → 4e → 交付。不允许重排 |
 
 ## Error Handling
