@@ -1,7 +1,14 @@
 ---
 name: resume-tailor
 description: "针对岗位 JD 定制简历，或生成通用方向简历。分析 JD 关键词、匹配源简历、交互式调整建议、反向诚意审计。触发词：调简历、tailor resume、优化简历、生成简历、通用简历、简历定制、resume for this JD"
-version: "3.0"
+version: "3.2"
+required_permissions:
+  - Read    # 读取源简历、故事库、JD 文本
+  - Write   # 写入定制后简历、snapshot、history/
+  - Glob    # 自动定位 resume_master.md 和故事库文件
+  - WebFetch # 抓取 JD URL
+  - WebSearch # 市场调研
+  - Bash    # pandoc/weasyprint 渲染、diff_audit.py/ats_checker.py 脚本
 ---
 
 # Resume Tailor v3
@@ -11,6 +18,16 @@ version: "3.0"
 Analyze a job description and tailor the source resume to match, using isolated expert nodes for writing and auditing.
 
 ## Trigger Phrases
+
+**⚠️ 优先级规则：所有触发词（含 Mode A / Mode B）先执行 Onboarding Check。**
+`resume_master.md` 不存在 → 无论用户说的是 Mode A/B 还是 Init，先进入 Init-A。
+`resume_master.md` 已存在 → 按下方分类判断 Mode。
+
+**Init（新用户初始化）：**
+- "帮我创建简历" / "我还没有简历" / "从头做简历"
+- "建一个故事库" / "帮我整理经历" / "我想记录项目经历"
+- "create resume from scratch" / "build my resume"
+- 所有触发词，如果检测不到 resume_master.md → 自动进入 Init-A
 
 **Mode A (JD-Targeted):**
 - "帮我针对这个 JD 调简历" / "tailor my resume for this JD"
@@ -23,18 +40,193 @@ Analyze a job description and tailor the source resume to match, using isolated 
 - "make a general resume" / "create a role-oriented resume"
 - "简历定制" / "简历优化"
 
+## Onboarding Check（所有流程的前置门卫）
+
+**在执行任何 Mode A / Mode B 流程之前，必须先检查两个资产是否存在：**
+
+```
+检查 resume_master.md
+    ├─ Glob **/resume_master.md 找到 → 记录路径，进入 Mode Detection
+    └─ 未找到 → 🔴 STOP，进入 【Init-A：创建 Master 简历】
+
+检查故事库（仅 Mode B 需要，或 Mode A 的 CP3 量化备援需要）
+    ├─ Glob **/项目故事库.md 或 **/story-library.md 找到 → 记录路径
+    └─ 未找到 → 在 Mode B 入口 或 CP3 量化追问失败时触发 【Init-B：创建故事库】
+```
+
+**🔴 STOP 规则**：
+- `resume_master.md` 不存在 → 不论用户要做什么，先完成 Init-A，再继续
+- 故事库不存在且用户选择 Mode B → 先完成 Init-B，再进入 Phase G1
+- 故事库不存在但用户选择 Mode A → 进入 Mode A，CP3 量化追问如用户无法回答则跳过，**不强制先建故事库**
+
+---
+
+### Init-A：创建 Master 简历（首次使用）
+
+**目标**：从用户已有的任意格式简历（.docx/.pdf/.txt/粘贴文字），生成结构化 `resume_master.md`。
+
+**流程**：
+
+```
+Step A1：获取原始简历
+  输出：「我没有找到你的简历文件，需要先创建一份 Master 简历作为所有后续定制的基础。
+         请选择：
+         (1) 粘贴你现有简历的文字内容
+         (2) 提供简历文件路径（.docx / .pdf）
+         (3) 从头开始，我来引导你填写」
+  → 等待用户回复
+
+Step A2：解析原始内容
+  - 如果是文件路径 → 用 python-docx 或 pdfplumber 读取全文
+  - 如果是粘贴文字 → 直接处理
+  - 如果从头填写 → 进入 Step A2b（引导式问卷，见下）
+
+Step A3：结构化提取 → 输出 resume_master.md（见模板）
+  - 用标准节段：个人信息 / 教育 / 工作经历 / 项目经历 / 技能 / 证书
+  - 每段经历必须包含：公司名、职位、时间区间、bullet 列表（暂时保留原始表述，不升级）
+  - 时间格式统一：YYYY.MM – YYYY.MM（或"至今"）
+  - 🔴 严禁：在此阶段修改任何数字或添加任何原文没有的描述
+
+Step A4：确认 + 存档
+  - 🔴 STOP CP：展示结构化后的 resume_master.md 给用户确认
+  - 用户确认 → 写入 {workspace}/resume_master.md
+  - 在 .workbuddy/memory/MEMORY.md 中记录 resume_path 字段
+  - 输出：「Master 简历已创建并保存到 {path}，后续所有简历定制都以此为基础。」
+```
+
+**Step A2b（从头填写引导问卷）**：
+
+每次只问 1 个问题，等用户回答后继续，共 5 轮：
+
+| 轮次 | 问题 |
+|------|------|
+| 1 | 「你的姓名、邮箱、电话、当前所在城市？」 |
+| 2 | 「最高学历：学校、专业、学位、时间？还有其他学历吗？」 |
+| 3 | 「最近一段工作/实习经历：公司、职位、时间、主要做了什么（1-3 句话）？」|
+| 4 | 「还有其他工作/实习/项目经历吗？请逐条描述（可以多条）。」 |
+| 5 | 「技能（如编程语言、工具、软件）？证书（如英语成绩、专业资格）？」 |
+
+收集完成后进入 Step A3。
+
+---
+
+### Init-B：创建故事库（首次 Mode B 使用，或 CP3 量化追问失败时）
+
+**目标**：把每段经历的 STAR 细节、量化数据、追问准备系统化地记录下来，形成简历写作的「唯一事实来源」。
+
+**何时触发**：
+- Mode B 入口检测到故事库不存在
+- Mode A / Mode B 的 CP3 量化追问 2 轮后用户无法给出数字（主动建议创建，而非强制）
+
+**流程**：
+
+```
+Step B1：说明价值
+  输出：「故事库是让简历里的每个数字都能在面试中答出来的保障。
+         我来引导你把每段经历的细节录入，大约需要 10-20 分钟，
+         建好后所有简历版本都从这里取数据。准备好了告诉我。」
+  → 等待用户确认
+
+Step B2：逐段录入（每段经历循环一次）
+  依次对每段工作/实习/项目经历：
+
+  问题 B2-1：「[经历名称] 的核心成果是什么？有没有具体数字？
+              （如：将 X 从 A 提升到 B，节省了 C 小时，影响了 D 个用户）」
+  问题 B2-2：「如果没有数字，当时的规模/范围是什么？
+              （如：覆盖了几个业务线？团队几个人？项目持续多久？）」
+  问题 B2-3：「面试官最可能追问的 1 个问题是什么？你会怎么回答？」
+
+Step B3：生成故事库文件（见模板）
+  - 每个经历 = 一个 ## 节，包含：STAR 格式 + 量化数据 + 追问准备
+  - 🔴 严禁：推断或填充用户没有提供的数字
+
+Step B4：确认 + 存档
+  - 🔴 STOP CP：给用户预览故事库，确认无误后写入文件
+  - 写入 {workspace}/project-story-library.md
+  - 在 .workbuddy/memory/MEMORY.md 中记录 story_library_path 字段
+```
+
+**故事库文件模板**：
+
+```markdown
+# 项目故事库
+
+## 经历 1：[公司] · [职位] · [时间区间]
+
+> 技术栈/工具：[列出主要工具]
+> 一句话概括：[核心动作 + 量化结果]
+
+### 核心成果（量化）
+- [数字/指标 1]：来源：[用户原话]
+- [数字/指标 2]：来源：[用户原话]
+- 暂无量化数据 → 规模：[范围描述]
+
+### STAR
+- **S（背景）**：[情境]
+- **T（任务）**：[目标]
+- **A（行动）**：[具体做了什么]
+- **R（结果）**：[量化结果或过程描述]
+
+### 面试追问准备
+- Q：[最可能被追问的问题]
+- A：[回答要点]
+
+---
+```
+
+---
+
+### Mode A 的故事库接入（CP3 量化备援）
+
+**Mode A 原本只依赖用户回复量化数据，现在补充以下规则：**
+
+在 CP3 量化追问时，**优先顺序**如下：
+
+```
+优先级 1：故事库中已有数字 → 直接使用，标注「来源：故事库」
+优先级 2：用户在对话中提供数字 → 使用，更新到故事库对应条目
+优先级 3：追问 2 轮后用户仍无数字 → 写过程描述，不编造
+                                    → 询问「要不要顺便把这段经历录入故事库，下次就有数据了？」
+```
+
+---
+
 ## Resume Input
 
 On first run, **try auto-detection first**:
 1. `Glob **/resume_master.md` in workspace — if found, use it directly
 2. If workspace has `resume_master.md` or `.workbuddy/memory/MEMORY.md` with a resume path, follow that
-3. Only if auto-detect fails → ask user to provide their resume file path (.docx preferred, .pdf or .txt acceptable)
+3. **Auto-detect fails → 不是直接报错，而是触发 【Init-A：创建 Master 简历】**
 
 **Story library path** (for Mode B capability matching): `{vault}/project-story-library.md`
 - Use `Glob **/项目故事库.md` or `Glob **/story-library.md` to auto-locate
-- Fallback: ask user for vault path or story library location
+- **Auto-detect fails → 在 Mode B 入口触发 【Init-B：创建故事库】**
 
 Store the resolved paths in workspace memory. **Never modify the original.**
+
+## Mode Detection Protocol（先于 Operating Modes 执行）
+
+在判断进入 Mode A 还是 Mode B 之前，执行以下决策树：
+
+```
+用户输入到达
+    │
+    ├─ 包含完整 JD 文本（≥ 50 字且含职责/要求描述）
+    │    → 直接进入 Mode A
+    │
+    ├─ 包含 URL（http/https 开头）
+    │    → WebFetch 获取内容；字数 ≥ 50 字 → Mode A；失败或内容不足 → 走「输入模糊」分支
+    │
+    ├─ 只有职位名称或方向词（如「数据分析师」「产品岗」< 50 字）
+    │    → 输出「我检测到的是职位方向，没有具体 JD。
+    │         有 JD 可以粘贴，或者直接告诉我你想做哪个方向，我用 Mode B 帮你生成通用简历。」
+    │         → 等待用户回复后再判断 Mode
+    │
+    └─ 用户明确说「不需要 JD」或「通用简历」
+         → 直接进入 Mode B，跳过确认问询
+```
+
+**🔴 STOP — 歧义输入不允许自行判断 Mode，必须问用户一次。每个 session 最多触发一次此确认。**
 
 ## Operating Modes
 
@@ -264,6 +456,17 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 | East Asia | 2 (Collaborative) | 协同, 推进, 支持 | Team-oriented |
 | Nordics | 1 (Humble) | Contributed, Improved | Impact-only |
 
+**CP4 Wording Boundary（硬边界 — 措辞升级只改形式，不改事实）**:
+
+| ✅ 允许 | ❌ 禁止 |
+|--------|--------|
+| 换更强的动词（"参与了"→"主导了"）——**需有故事库/用户确认支撑** | 添加原简历和故事库里都没有的事实性描述 |
+| 调整语气（弱→强，根据区域 slider） | 添加新的职责范围（如"覆盖从需求到上线的完整产品周期"——除非有依据） |
+| 重组 bullet 结构（结果前置等） | 凭空添加量化数字 |
+| 对齐 JD 关键词（原简历有对应概念时） | 为对齐 JD 编造不存在的经验 |
+
+**🔴 如果对某条措辞升级是否越界存疑 → 输出 before/after 并标注「不确定是否有依据」，让用户确认后再写入。**
+
 **Global Interaction Principle**: Every question must include a concrete recommendation. User confirms or overrides — never decides from scratch.
 
 ### Phase 4: Delivery & Audit (Physical Isolation)
@@ -351,10 +554,10 @@ Layer 3 Draft (Markdown)
     ↓ Phase 4b: pypandoc → DOCX (clean conversion)
 ```
 
-**Graceful degradation**:
-- WeasyPrint unavailable → HTML-only output with "Print → Save as PDF" prompt
-- pandoc unavailable → raw Markdown export
-- markdown-it-py unavailable → python-markdown fallback
+**渲染降级（按顺序尝试，任一步成功即止）**:
+- WeasyPrint 不可用 → 输出 HTML 文件 + 提示「用浏览器打开，Ctrl+P → 保存为 PDF」；**不报错，不中断流程**
+- pandoc 不可用 → 直接输出 raw Markdown，文件名后缀改为 `.md`；在交付消息里说明「DOCX 暂不可用，已输出 Markdown」
+- markdown-it-py 不可用 → `import markdown as md; md.markdown(text)` 执行 python-markdown 转换；**不抛异常**
 
 CSS template: `templates/resume_template.css` (Tech Style, single-column, A4 portrait)
 
@@ -396,18 +599,33 @@ CSS template: `templates/resume_template.css` (Tech Style, single-column, A4 por
 | 10 | **用课程/学校标签弱化项目** | "NUS 商业分析项目（BAP）"让人以为是课程 toy，面试官直接打折 | 副标题只写角色身份（"独立开发"/"个人项目"），不写课程编号；地点写城市/国家，不写学校 |
 | 11 | **跳过 Phase 4 反向审计直接交付** | 没有独立 Auditor 的简历 = 没有诚意检查，面试时会被追问打穿 | Phase 4 必须 Writer → Auditor 两个独立调用；Auditor 未跑完不能交付 |
 
+## Agent Execution Anti-Patterns（NEVER — Agent 自主执行时）
+
+> 以下反模式来自 Agent 在无监督状态下运行 resume-tailor 时最容易犯的错误，与上方「用户约定层 Anti-Patterns」不同——这些是 **LLM/Agent 主动犯的执行错误**，不是用户约定。
+
+| # | 反模式 | 触发场景 | 为什么不能做 | 正确做法 |
+|---|---|---|---|---|
+| A1 | **跳过 CP 继续推进** | Agent 认为「用户意图已明确，不需要再问」 | CP 是状态写入节点，跳过意味着 snapshot 里没有 `user_decisions` 记录，后续 Auditor 无法追溯 | 遇到 `🔴 STOP CP*` 标记 → 无论上下文多明确，必须输出 CP 内容并等待用户回复再推进 |
+| A2 | **Writer 和 Auditor 在同一个 LLM 调用里完成** | Agent 把 Phase 4a+4b+4c 合并为一段输出 | 自写自审 = 零审查效果，Auditor 不会质疑同一上下文里刚生成的内容 | Phase 4a 输出草稿后，必须切换新的上下文窗口（或新的 prompt 调用）执行 Auditor 节点 |
+| A3 | **MODE 判断后未确认就直接推进** | 用户输入「帮我做个产品简历」→ Agent 自判为 Mode B 直接跑 Phase G1 | 如果用户其实有 JD 待贴，浪费了整个 Phase G1 | 初次 MODE 判断后，先输出「我判断你需要 Mode B（无 JD 通用），对吗？」再推进 |
+| A4 | **量化追问超过 2 轮仍不落地** | CP3 追问 4 轮后用户还是没数字，Agent 继续追问 | 无限追问体验极差且无意义 | 追问满 2 轮无结果 → 立即切换为过程描述，明确告知用户「本条以过程描述呈现，如后续有数据可补充」 |
+| A5 | **STATE_UPDATE 解析失败后静默继续** | JSON parse error → Agent 忽略错误继续下一步 | snapshot 状态不一致，后续所有节点读到的都是脏数据 | JSON 解析失败 → 立即停止，输出原始文本，提示用户「状态同步失败，需要人工确认后继续」 |
+| A6 | **在 Phase 1 执行 web_search 但从不使用结果** | Market research 跑完，但 scout_report 里没有 company/role insight 落地 | 浪费 token + 用户看到"调研了但没用"印象差 | web_search 结果必须至少影响一条 `risk_warnings` 或 `capability_clusters` 输出，否则不跑 |
+| A7 | **历史版本审计（Step 4e）在 4d 之前跑** | Agent 重排了执行顺序「先审计再出稿」 | Step 4e 的输入是 4d 编译完成的草稿，提前跑没有内容可比对 | 严格顺序：4a → 4b → 4c → 4d → 4e → 交付。不允许重排 |
+
 ## Error Handling
 
 | Error | Primary Action | If Primary Fails |
 |-------|---------------|-----------------|
-| No resume file | Auto-detect via Glob; ask user if not found | Check `.workbuddy/memory/MEMORY.md` for stored path |
-| No JD provided | Switch to Mode B (General-Purpose) | If user confirms they want JD mode → ask them to paste JD text |
-| JD URL fetch fails | Ask user to paste text | Try WebFetch with mobile user-agent as fallback |
-| Story library missing data for a claim | Ask user to confirm — NEVER fabricate | If user also can't confirm → drop the claim entirely, don't include |
-| STATE_UPDATE JSON parse fail | Inject self-correction prompt, retry once | Second failure → manually extract key fields from raw output, skip JSON parsing |
-| 🔴 Major issues in audit | ROLLBACK flag → revert to Phase 3 | If re-audit still finds majors → escalate to user: "fix manually or accept risk?" |
-| LLM timeout | Retry with same snapshot context | Second timeout → restart with reduced snapshot (trim non-essential context) |
-| Script failure (jd_parser etc.) | Degrade gracefully, Scout node handles via LLM | If both script and LLM fail → ask user to manually summarize JD in 3 bullet points |
+| No resume file | `Glob **/resume_master.md`；找到则直接用，未找到则输出「请提供简历文件路径（.docx/.pdf/.md）」 | 检查 `.workbuddy/memory/MEMORY.md` 中 `resume_path` 字段；仍无 → 停止执行，不猜测 |
+| No JD provided | 输出「未检测到 JD，切换到 Mode B（通用方向简历），请确认目标岗位方向」，等用户回复后再推进 | 若用户确认要 JD 模式 → 输出「请直接粘贴 JD 文本」，不尝试自行推断 |
+| JD URL fetch fails | 输出「链接无法访问，请直接粘贴 JD 文本」 | 用 `WebFetch` 附加 `User-Agent: Mozilla/5.0 Mobile` 重试一次；仍失败 → 停止，不继续 |
+| Story library missing data for a claim | 输出「故事库中缺少[XXX]的数据，请确认或提供」——列出缺失字段，等待回复 | 用户无法确认 → 完整删除该 bullet，不写任何推断性描述 |
+| snapshot.json 损坏或缺失 | 备份损坏文件为 `snapshot.json.bak.YYYYMMDD-HHMM`，重建空 snapshot（只保留 `_meta` 层），从 Phase 1 重新开始 | 无法写文件 → 停止，输出「状态文件异常，请手动删除 sessions/ 目录后重试」 |
+| STATE_UPDATE JSON parse fail | 在同一上下文注入自纠正 prompt「请只输出合法 JSON，格式：{...}」，重试一次 | 第二次失败 → 从原始输出手动提取关键字段（`status`、`decisions`），跳过 JSON 解析，在 snapshot 中标注 `parse_error: true` |
+| 🔴 Major issues in audit | 在 STATE_UPDATE 中写入 `["ROLLBACK"]`，回退到 Phase 3；**在回退前必须向用户输出具体问题列表和对应的 mock 面试问题** | 重新审计仍发现 major → 输出「以下问题建议手动修改或接受风险，请选择」，不再自动回滚 |
+| LLM timeout | 用完整 snapshot 重试一次 | 第二次 timeout → 裁剪 snapshot（只保留 `jd_facts` + `user_decisions`，删除 `expert_outputs`），再试一次；三次均失败 → 停止并告知用户 |
+| Script failure (jd_parser 等) | Scout 节点用 LLM 直接提取 JD 特征（不依赖脚本），并在输出中标注「脚本降级，LLM 提取」 | LLM 提取也失败 → 输出「请用 3 条 bullet 手动描述 JD 的核心要求」，等用户输入后继续 |
 
 ## Dependencies
 
