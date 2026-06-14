@@ -50,6 +50,7 @@ If this block is missing or malformed, the output is rejected and a reformat req
   "delta": {
     "jd_facts": {
       "capability_clusters": ["Data Engineering", "Cloud Architecture", "Stakeholder Management"],
+      "ats_keywords": ["SQL", "Python", "AWS", "data pipeline", "stakeholder management"],
       "market_notes": "Company focuses on AI-driven analytics platform. Values cross-functional collaboration."
     },
     "expert_outputs": {
@@ -177,8 +178,7 @@ If this block is missing or malformed, the output is rejected and a reformat req
   "delta": {
     "expert_outputs": {
       "delivery_package": {
-        "resume_docx": "history/2026-04-15_pwc_da.docx",
-        "resume_pdf": "history/2026-04-15_pwc_da.pdf",
+        "resume_html": "history/2026-04-15_pwc_da.html",
         "resume_md": "history/2026-04-15_pwc_da.md",
         "audit_log": "history/2026-04-15_pwc_da_audit.md"
       }

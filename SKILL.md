@@ -68,7 +68,7 @@ Analyze a job description and tailor the source resume to match, using isolated 
     └─ 未找到 → 🔴 STOP，进入 【Init-A：创建 Master 简历】
 
 检查故事库（仅 Mode B 需要，或 Mode A 的 CP3 量化备援需要）
-    ├─ Glob **/项目故事库.md 或 **/story-library.md 找到 → 记录路径
+    ├─ Glob **/项目故事库.md 或 **/story-library.md 或 **/project-story-library.md 找到 → 记录路径
     └─ 未找到 → 在 Mode B 入口 或 CP3 量化追问失败时触发 【Init-B：创建故事库】
 ```
 
@@ -217,7 +217,7 @@ On first run, **try auto-detection first**:
 3. **Auto-detect fails → 不是直接报错，而是触发 【Init-A：创建 Master 简历】**
 
 **Story library path** (for Mode B capability matching): `{vault}/project-story-library.md`
-- Use `Glob **/项目故事库.md` or `Glob **/story-library.md` to auto-locate
+- Use `Glob **/项目故事库.md` or `Glob **/story-library.md` or `Glob **/project-story-library.md` to auto-locate
 - **Auto-detect fails → 在 Mode B 入口触发 【Init-B：创建故事库】**
 
 Store the resolved paths in workspace memory. **Never modify the original.**
@@ -608,7 +608,7 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 - **每轮搜索结果必须至少影响一项下游产出**（见"产出落地点"列），否则标记为无效搜索（违反 A6）
 - 搜索结果中提取的关键信息标注 `来源：[搜索关键词]`，存入 `scout_report` 和 `interview_intel`
 
-4. Execute unified context extraction (script + LLM in one pass)
+4. Execute unified context extraction (script + LLM in one pass). Note: `jd_parser.py` only extracts structured features (years, degree). Scout must extract skill keywords, soft requirements, and `ats_keywords` via LLM and write them into `jd_facts` via STATE_UPDATE.
 5. Detect role level, region, document type
 6. Output consolidated context table + `interview_intel` 卡片（面经摘要 + 面试重点提示 + 文化关键词）+ risk warnings
 
