@@ -629,35 +629,4 @@ CSS template: `templates/resume_template.css` (Tech Style, single-column, A4 por
 
 ## Dependencies
 
-### Script Implementation Status
-
-| Script | Status | Description |
-|--------|--------|-------------|
-| `scripts/engine.py` | ✅ Implemented | Pipeline orchestrator, pseudo multi-agent loop |
-| `scripts/renderer.py` | ✅ Implemented | MD → HTML → PDF/DOCX rendering pipeline |
-| `scripts/jd_parser.py` | ✅ Implemented | JD feature extraction (regex + heuristic) |
-| `scripts/diff_audit.py` | ✅ Implemented | Source vs tailored change comparison |
-| `scripts/ats_checker.py` | ✅ Implemented | ATS compatibility validation |
-| `scripts/main.py` | ✅ Implemented | CLI entry point |
-| `scripts/utils.py` | ✅ Implemented | Shared utilities |
-
-> **Note**: All scripts are functional. The v3.0 architecture (pseudo multi-agent + blackboard) is implemented in `engine.py`. The rendering pipeline with Phase 2.5 tokenization is in `renderer.py`.
-
-### Python Packages
-
-```
-# v3.0 Rendering Pipeline (core)
-jinja2>=3.1.0              # Template engine
-markdown-it-py>=3.0.0      # Markdown → HTML (preferred)
-weasyprint>=60.0           # PDF generation (optional, graceful fallback)
-pypandoc>=1.17             # DOCX generation (optional, requires pandoc CLI)
-pyyaml>=6.0                # Snapshot schema YAML support
-
-# v2.x Resume I/O (still used)
-python-docx>=0.8.11        # .docx read/write
-pdfplumber>=0.10.0         # PDF reading (primary)
-
-# Optional fallbacks
-python-markdown>=3.5.0     # Fallback MD parser
-PyPDF2>=3.0.0              # Fallback PDF reader
-```
+> 详见 README.md 的 Dependencies 节。SKILL.md 不重复列出。
