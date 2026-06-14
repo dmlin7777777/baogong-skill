@@ -8,7 +8,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-**v3.3 — Structured Web Search (Interview Intel + Company Culture + Business Signals)**
+**v3.3 — Rendering Pipeline Refactor (HTML+MD Dual Delivery + Swiss Design)**
 
 </div>
 
@@ -16,27 +16,47 @@
 
 ## What's New in v3.3
 
+### Structured Web Search
 **Phase 1 upgraded from vague "market research" to a 3-tier structured web search strategy:**
 
-### S1 — Interview Experience Mining
+**S1 — Interview Experience Mining**
 Searches for `"{Company} {Role} interview experience"` / `"{Role} interview questions"` patterns to extract:
 - What interviewers actually ask (not what the JD says)
 - High-frequency checkpoints and hidden requirements
 - → Drives CP3 quantification direction and makes Phase 4c mock questions authentic
 
-### S2 — Company Culture & Real Work
+**S2 — Company Culture & Real Work**
 Searches for `"Working at {Company} as {Role}"` / `"{Company} tech stack"` to extract:
 - Actual tech stack (often different from JD requirements)
 - Team style and cultural keywords
 - → Calibrates Phase 2 skill matching weights and CP4 cultural tone slider
 
-### S3 — Business Signals
+**S3 — Business Signals**
 Searches for `"{Company} business focus"` / `"{Company} org changes"` to extract:
 - Revenue priorities, new product lines, org restructuring
 - → Feeds `risk_warnings` (flag contracting departments) and `capability_clusters` targeting
 
-### Delivery
 Each search tier's output lands on a specific downstream node (no empty searches — enforced by updated A6 anti-pattern). Extracted insights saved as `{date}_{company}_{role}_interview_intel.md` in `history/`.
+
+### Rendering Pipeline Refactor — HTML/MD Dual Delivery
+
+**Old**: MD → markdown-it → Jinja2 → WeasyPrint PDF + pandoc DOCX (4 Python package dependencies, frequently broken on Windows)
+
+**New**:
+
+| Format | Priority | Notes |
+|--------|----------|-------|
+| **Markdown** | Primary | Direct output from Phase 4a Writer. Readable, diffable, Git-friendly |
+| **HTML** | Primary | `templates/resume_swiss.html` Swiss International Style, single-file, zero deps |
+| PDF | User-side | Browser Ctrl+P → Save as PDF. **Not auto-generated in pipeline** |
+| DOCX | Removed | WeasyPrint / pandoc / pypandoc dependencies fully removed |
+
+**HTML template design** (inspired by guizang-ppt Swiss style):
+- Information-first, zero decoration (no shadows, radius, gradients)
+- Typographic hierarchy: weight inversely proportional to size (300 → 400 → 600)
+- Single-file, CSS variable-driven, no external dependencies
+- A4 print-optimized: `@page { size: A4 }` + browser-native printing
+- Fonts: Inter (Latin) + Noto Sans SC / Microsoft YaHei (CJK)
 
 ---
 
@@ -332,10 +352,12 @@ The CSS is designed for **A4 portrait, single page**. Adjust spacing variables t
 
 ## Version History
 
-### v3.3 (Current) — Structured Web Search Strategy
+### v3.3 (Current) — Structured Web Search + Rendering Refactor
 - **3-tier search**: S1 interview experience mining → S2 company culture/real work → S3 business signals
 - **Interview intel delivery**: `{date}_{company}_{role}_interview_intel.md` stored in `history/`
 - **Phase 4c integration**: Mock interview questions now sourced from real interview experiences (S1)
+- **Rendering refactor**: HTML (Swiss International Style) + Markdown dual delivery; WeasyPrint/pandoc/DOCX removed
+- **Swiss HTML template**: `templates/resume_swiss.html`, CSS variable-driven, single-file, browser-native printing
 - **A6 anti-pattern updated**: Every search round must land on a specific downstream node or don't run
 - **CP3 quantification targeting**: Quantification questions informed by what interviewers actually ask
 
