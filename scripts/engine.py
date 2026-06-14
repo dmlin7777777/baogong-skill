@@ -53,7 +53,8 @@ class Snapshot:
         self._schema_path = SCHEMAS_DIR / "snapshot_schema_v1.json"
 
     def initialize(self, jd_text: str, resume_path: str,
-                    company: str = None, role: str = None) -> dict:
+                    company: str = None, role: str = None,
+                    mode: str = "a") -> dict:
         """Create new snapshot with Layer 1 populated by scripts."""
         self.session_dir.mkdir(parents=True, exist_ok=True)
 
@@ -81,12 +82,20 @@ class Snapshot:
             "_meta": {
                 "version": "1.2",
                 "session_id": self.session_id,
-                "status": "initialized",
+                "status": "a2_collecting" if mode == "a2" else "initialized",
+                "mode": mode,
+                "a2_context": {
+                    "jd_labels": [],
+                    "per_jd_sessions": [],
+                    "shared_decisions": {
+                        "universal_experiences": [],
+                        "shared_quantifications": {},
+                    },
+                } if mode == "a2" else None,
                 "last_updated": now_iso,
                 "current_node": None,
                 "rollback_from": None,
                 "error_log": [],
-                # Rolling summary of recent turns for continuity
                 "conversation_history": [],
             },
             "jd_facts": {
@@ -95,7 +104,10 @@ class Snapshot:
                 "company_name": company,
                 "region": jd_result.get("region", "unknown"),
                 "role_level": jd_result.get("role_level", "unknown"),
-                "hard_requirements": jd_result.get("requirements", []),
+                "hard_requirements": [
+                    {**req, "info_status": req.get("info_status", "pending")}
+                    for req in jd_result.get("requirements", [])
+                ],
                 "soft_requirements": jd_result.get("soft_requirements", []),
                 "capability_clusters": jd_result.get("capability_clusters", []),
                 "market_notes": None,  # Filled by Scout node
@@ -130,7 +142,7 @@ class Snapshot:
             },
         }
 
-        self._save()
+        self.save()
         return self._data
 
     def load(self) -> dict:

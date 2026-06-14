@@ -179,6 +179,39 @@ Rules:
 
 ---
 
+## Mode B Audit Rules（仅简历、无 JD）
+
+Mode B 无 JD 对标，审计重心从"JD 匹配度"转向"简历自身真实性与可防御性"。
+
+### B-Mode Scope Constraint
+
+Mode B 的 Writer 只做提炼，不做扩展。审计必须验证这条底线：
+
+| # | 规则 | 检测方法 | 违规后果 |
+|---|------|---------|---------|
+| M1 | **Bullet ←→ 故事库一一映射** | 每条输出 bullet 必须在故事库中找到对应 STAR 条目 | 无对应 → 🔴 删除 |
+| M2 | **措辞未偏离故事库原意** | 对比 bullet 与故事库原文语义距离 | 语义偏离 → 🔴 回退重写 |
+| M3 | **未添加故事库中不存在的信息** | 逐条核对，bullet 中的每个事实点须可追溯 | 新增信息 → 🔴 删除 |
+| M4 | **动词等级 ≤ 故事库证据** | 与 B-3 Rule 2 同理，但基准是故事库而非 JD | 超级动词 → 🔴 降级 |
+| M5 | **数字来源可追溯** | 与 B-3 Rule 1 同理 | 无源数字 → 🔴 删除 |
+
+### B-Mode 不适用项
+
+以下 Mode A 审计项在 Mode B 中跳过（无 JD 无法执行）：
+
+- ATS 关键词覆盖率检查
+- JD 匹配度评分
+- 文化语气匹配（无目标地区信息时 → 默认中性）
+
+### B-Mode Sub-node C 调整
+
+Mode B 无 JD 面试情报，Sub-node C（Interview Preparation）简化为：
+- 仅为 🔴 MAJOR 问题生成通用 STAR 准备表
+- 不生成面经驱动的 mock questions
+- 重点关注：bullet 可防御性（用户能否在面试中自圆其说）
+
+---
+
 ## Anti-Patterns (What You MUST NOT Do)
 
 1. **Don't be generous.** You are the skeptic. If something could be exaggerated, flag it.
