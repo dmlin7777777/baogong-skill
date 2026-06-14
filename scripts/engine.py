@@ -1,5 +1,5 @@
 """
-Resume Tailor — Pipeline Engine (v3.0)
+Resume Tailor — Pipeline Engine (v3.3)
 
 Pseudo Multi-Agent Orchestrator with Blackboard Architecture.
 
@@ -510,14 +510,15 @@ def run_orchestration_loop(snapshot: Snapshot,
 
 def render_deliverables(snapshot: Snapshot) -> dict:
     """
-    Render final outputs via the v3.0 rendering pipeline (renderer.py).
+    Render final outputs via the v3.3 rendering pipeline (renderer.py).
 
-    Pipeline: Markdown → preprocess → Jinja2 HTML → PDF/DOCX
-      - Phase 1: Regex preprocessing (**Summary**: content → <span>)
-      - Phase 2: MD → HTML fragment (markdown-it-py / markdown)
-      - Phase 3: Jinja2 layout with inline CSS
-      - Phase 4a: WeasyPrint → PDF (with page overflow detection)
-      - Phase 4b: pypandoc → DOCX (cleaner than HTML→Word)
+    Pipeline: Markdown draft → parse → template substitution → HTML
+      - Parse Writer's Markdown draft into structured sections
+      - Load templates/resume_swiss.html (Swiss International Style)
+      - Fill {{PLACEHOLDER}} blocks with parsed content
+      - Write single-file HTML (browser Ctrl+P → PDF)
+
+    Zero external dependencies (no Jinja2, markdown-it, WeasyPrint, pandoc).
 
     Returns RenderResult dict from renderer.render().
     """

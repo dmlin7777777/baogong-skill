@@ -1,1042 +1,438 @@
 """
-Resume Tailor — Renderer Pipeline (v3.0)
+Resume Tailor — Renderer (v3.3)
 
-Rendering pipeline: Markdown → (preprocess) → Jinja2 HTML → PDF/DOCX.
+Zero-dependency rendering pipeline.
+Replaces the old Jinja2/markdown-it/WeasyPrint/pypandoc stack.
 
 Architecture:
-  - Jinja2 as template glue — zero string concatenation in code.
-  - WeasyPrint for PDF (best CSS print support in Python ecosystem).
-  - pypandoc for DOCX fallback (cleaner than HTML→Word conversion).
-  - Regex preprocessing for **Summary**: content → <span class="bullet-summary"> pattern.
-  - Page overflow detection: len(doc.pages) > 1 triggers compression warning to engine.py.
+  1. Parse Markdown draft into structured sections (h2-delimited)
+  2. Convert each section to Swiss-template HTML fragments
+  3. Load templates/resume_swiss.html, substitute {{PLACEHOLDER}} blocks
+  4. Write filled HTML
+
+Design principles:
+  - Zero external Python dependencies.
+  - The template is the single source of truth for layout/CSS.
+  - Renderer only does content extraction + placeholder filling.
+  - Template missing? Deliver raw Markdown, no error.
 
 Entry point:
   render(snapshot_path, output_dir) -> RenderResult
-
-Graceful degradation:
-  - WeasyPrint unavailable on Windows? Falls back to HTML-only + browser-based PDF hint.
-  - pandoc not installed? Falls back to raw markdown export.
 """
 
 import json
-import os
 import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-# ── Lazy imports ──
-
-def _import_jinja2():
-    from jinja2 import Environment, FileSystemLoader, select_autoescape
-    return Environment(
-        loader=FileSystemLoader(str(TEMPLATES_DIR)),
-        autoescape=select_autoescape(["html", "xml"]),
-        trim_blocks=True,
-        lstrip_blocks=True,
-    )
-
-
-def _import_markdown_lib():
-    """Try markdown-it-py (preferred) or fallback to standard markdown."""
-    try:
-        from markdown_it import MarkdownIt
-        return MarkdownIt("commonmark").enable("strikethrough")
-    except ImportError:
-        import markdown
-        return None
-
-
 # ── Constants ──
 
 BASE_DIR = Path(__file__).parent.parent
 TEMPLATES_DIR = BASE_DIR / "templates"
-SCHEMAS_DIR = BASE_DIR / "schemas"
+SWISS_TEMPLATE = "resume_swiss.html"
 
-JINJA_TEMPLATE_NAME = "resume_layout.html.j2"   # Jinja2 layout template
-CSS_FILENAME = "resume_template.css"              # Our crafted CSS
-
-# Required font families (must be available on host system)
-# Each category lists aliases — ANY one match means the font is available
-REQUIRED_FONTS = {
-    "Latin/Digits": ["Times New Roman", "Times"],
-    # Microsoft YaHei registers as "Microsoft YaHei" in Windows registry;
-    # Chinese name "微软雅黑" may not appear in registry but the same font.
-    "CJK": ["Microsoft YaHei", "微软雅黑", "SimHei", "黑体"],
+# Section classification: h2 text → section type
+_SECTION_KEYS = {
+    "experience": ["经历", "实习", "工作", "experience", "work", "intern"],
+    "education":  ["教育", "学历", "education"],
+    "projects":   ["项目", "学术", "projects", "academic"],
+    "skills":     ["技能", "证书", "skills", "certif"],
+    "summary":    ["总结", "简介", "概要", "summary", "profile", "about"],
 }
 
-# Cache for environment check results
-_ENV_CHECK_CACHE = None
+# Date patterns: "2024.07 — 至今", "2021.09 — 2024.06", "Jun 2023 – Present"
+_DATE_RE = re.compile(
+    r'(\d{4}[.\s/]\d{1,2}|[A-Z][a-z]{2,8}\s*\d{4})\s*[–\-—]\s*'
+    r'(至今|Present|Current|[A-Z][a-z]{2,8}\s*\d{4}|\d{4}[.\s/]\d{1,2})'
+)
 
-
-def check_rendering_environment() -> dict:
-    """
-    Check the runtime environment for rendering prerequisites.
-
-    Returns dict with:
-      - fonts_available: {category: [found_font, ...]}
-      - fonts_missing: {category: [missing_font_list]}
-      - weasyprint_available: bool
-      - pandoc_available: bool
-      - warnings: list[str]
-      - is_healthy: bool (fonts ok + at least one output format works)
-    """
-    global _ENV_CHECK_CACHE
-    if _ENV_CHECK_CACHE is not None:
-        return _ENV_CHECK_CACHE
-
-    result = {
-        "fonts_available": {},
-        "fonts_missing": {},
-        "weasyprint_available": False,
-        "pandoc_available": False,
-        "warnings": [],
-        "is_healthy": True,
-    }
-
-    # --- Font detection ---
-    import platform
-    system = platform.system()
-
-    if system == "Windows":
-        # On Windows, query the registry for installed fonts
-        result["fonts_available"], result["fonts_missing"] = _check_fonts_windows()
-    elif system == "Darwin":
-        result["fonts_available"], result["fonts_missing"] = _check_fonts_macos()
-    elif system == "Linux":
-        result["fonts_available"], result["fonts_missing"] = _check_fonts_linux()
-    else:
-        # Unknown OS — optimistic default
-        for cat in REQUIRED_FONTS:
-            result["fonts_available"][cat] = ["(unknown — assuming available)"]
-            result["fonts_missing"][cat] = []
-
-    # Generate font warnings
-    for cat, missing in result["fonts_missing"].items():
-        if missing:
-            result["warnings"].append(
-                f"Missing fonts for {cat}: {', '.join(missing)}. "
-                f"PDF/HTML may render with fallback fonts."
-            )
-
-    # --- WeasyPrint ---
-    result["weasyprint_available"] = _check_weasyprint()
-
-    # --- Pandoc ---
-    try:
-        import pypandoc
-        result["pandoc_available"] = bool(pypandoc.get_pandoc_version())
-    except (ImportError, Exception):
-        result["pandoc_available"] = False
-        # Only warn if DOCX was requested (checked later)
-
-    # Health check: need fonts + at least one output format
-    has_any_output = result["weasyprint_available"] or result["pandoc_available"]
-    all_fonts_ok = all(len(v) == 0 for v in result["fonts_missing"].values())
-    result["is_healthy"] = all_fonts_ok and has_any_output
-
-    _ENV_CHECK_CACHE = result
-    return result
-
-
-def _check_fonts_windows() -> tuple[dict, dict]:
-    """Check font availability on Windows via registry."""
-    available = {}
-    missing = {}
-
-    try:
-        import winreg
-        font_key = winreg.OpenKey(
-            winreg.HKEY_LOCAL_MACHINE,
-            r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"
-        )
-        installed_fonts = []
-        i = 0
-        while True:
-            try:
-                font_name, _, _ = winreg.EnumValue(font_key, i)
-                installed_fonts.append(font_name.lower().rstrip("(truetype)").rstrip("(opentype)"))
-                i += 1
-            except OSError:
-                break
-        winreg.CloseKey(font_key)
-
-        for cat, font_list in REQUIRED_FONTS.items():
-            found_any = False
-            found_names = []
-            not_found = []
-            for font_name in font_list:
-                if any(font_name.lower() in f for f in installed_fonts):
-                    found_names.append(font_name)
-                    found_any = True
-                else:
-                    not_found.append(font_name)
-            # If any alias matched → category is available
-            if found_any:
-                available[cat] = found_names
-                missing[cat] = []  # No missing — we have at least one working alias
-            else:
-                available[cat] = ["(fallback to serif/sans-serif)"]
-                missing[cat] = not_found
-
-    except Exception as e:
-        # Registry access failed (e.g., limited permissions) — assume OK
-        for cat in REQUIRED_FONTS:
-            available[cat] = ["(registry access denied — assumed present)"]
-            missing[cat] = []
-
-    return available, missing
-
-
-def _check_fonts_macos() -> tuple[dict, dict]:
-    """Check font availability on macOS via Font Book."""
-    import subprocess
-    available = {}
-    missing = {}
-
-    try:
-        result = subprocess.run(
-            ["system_profiler", "SPFontsDataType"],
-            capture_output=True, text=True, timeout=10
-        )
-        font_output = result.stdout.lower()
-
-        for cat, font_list in REQUIRED_FONTS.items():
-            found_any = False
-            found_names = []
-            not_found = []
-            for font_name in font_list:
-                if font_name.lower() in font_output:
-                    found_names.append(font_name)
-                    found_any = True
-                else:
-                    not_found.append(font_name)
-            if found_any:
-                available[cat] = found_names
-                missing[cat] = []
-            else:
-                available[cat] = ["(fallback to serif/sans-serif)"]
-                missing[cat] = not_found
-    except Exception:
-        for cat in REQUIRED_FONTS:
-            available[cat] = ["(font check failed — assumed present)"]
-            missing[cat] = []
-
-    return available, missing
-
-
-def _check_fonts_linux() -> tuple[dict, dict]:
-    """Check font availability on Linux via fc-list."""
-    import subprocess
-    available = {}
-    missing = {}
-
-    try:
-        result = subprocess.run(
-            ["fc-list", ":", "family"],
-            capture_output=True, text=True, timeout=10
-        )
-        font_output = result.stdout.lower()
-
-        for cat, font_list in REQUIRED_FONTS.items():
-            found_any = False
-            found_names = []
-            not_found = []
-            for font_name in font_list:
-                if font_name.lower() in font_output:
-                    found_names.append(font_name)
-                    found_any = True
-                else:
-                    not_found.append(font_name)
-            if found_any:
-                available[cat] = found_names
-                missing[cat] = []
-            else:
-                available[cat] = ["(fallback to serif/sans-serif)"]
-                missing[cat] = not_found
-    except Exception:
-        for cat in REQUIRED_FONTS:
-            available[cat] = ["(fc-list not found — assumed present)"]
-            missing[cat] = []
-
-    return available, missing
+# Contact separator: phone | email | github | location
+_CONTACT_SEP = re.compile(r'\s*\|\s*')
 
 
 @dataclass
 class RenderResult:
-    """Structured result of a rendering pass."""
+    """Structured result of a rendering pass, compatible with engine.py."""
     success: bool = False
     html_path: Optional[str] = None
     pdf_path: Optional[str] = None
     docx_path: Optional[str] = None
     md_path: Optional[str] = None
-    page_count: int = 0
+    page_count: int = 1
     warnings: list = field(default_factory=list)
     errors: list = field(default_factory=list)
-    engine_action: Optional[dict] = None  # Compression instruction if overflow detected
+    engine_action: Optional[dict] = None
 
 
 # ════════════════════════════════════════════════════════
-# PHASE 1: SEMANTIC PREPROCESSING
+# MARKDOWN PARSER
 # ════════════════════════════════════════════════════════
 
-# Pattern 1 (primary): Match bullet points starting with "- **Summary**: detail"
-# Anchored with ^\s*- to prevent matching **bold** in headings/titles
-# Handles: no-space-colon, multi-space, space-before-colon, CJK colon
-# (.+?) non-greedy + [^\n\r] prevents cross-line over-matching
-BULLET_SUMMARY_PATTERN = re.compile(
-    r'^\s*\-\s*\*\*(.+?)\*\*\s*[:：]\s*([^\n\r]+)',
-    re.MULTILINE,
-)
-
-# Pattern 2 (fallback): **Summary**: at end of line with no detail (malformed, skip)
-BULLET_SUMMARY_EMPTY_PATTERN = re.compile(
-    r'^\s*\-\s*\*\*(.+?)\*\*\s*[:：]\s*$',
-    re.MULTILINE,
-)
+def _classify_section(h2_text: str) -> str:
+    """Map h2 heading text to a section type."""
+    lower = h2_text.lower().strip()
+    for stype, keywords in _SECTION_KEYS.items():
+        for kw in keywords:
+            if kw in lower:
+                return stype
+    return "experience"  # default fallback
 
 
-def preprocess_markdown(md_text: str) -> str:
+def _parse_markdown(md_text: str) -> dict:
     """
-    Phase 1: Preprocess Markdown before rendering.
+    Parse a Markdown resume draft into structured data.
 
-    Transformations:
-      1. **Summary**: content → <span class="bullet-summary">Summary:</span> content
-         This lets the LLM output plain Markdown while the renderer applies CSS styling.
-      2. Normalize CJK colons to ASCII colons for consistency.
-      3. Strip excessive blank lines (>2 consecutive).
-      4. Robustness: handles zero/multiple spaces around colon, space-before-colon,
-         and gracefully skips empty bullet summaries.
-
-    Regex robustness notes:
-      - ^\\s*\\- anchor: ONLY matches list items (- text), prevents matching **bold** 
-        in headings like "### Company — **Job Title**"
-      - \\s* before colon: matches "text** :" (space before colon)
-      - \\s* after colon: matches "text:**" (no space after) or "text**:  " (multiple spaces)
-      - (.+?) non-greedy capture: prevents over-matching within same line
-      - [^\\n\\r]+ for detail: restricts to single line, preventing cross-bullet over-match
-      - re.MULTILINE: each line is checked independently
-      - Multi-line bullets: only the FIRST line gets <span> styling; continuation lines 
-        render as normal body text (this is acceptable and safer than DOTALL greediness)
+    Returns dict with keys:
+      name, subtitle, contact_items, sections[].
+      Each section: {type, title, entries[]}.
+      Each entry: {title, subtitle, date, bullets[]}.
     """
-    def _replace_bullet(match):
-        summary_text = match.group(1).strip()
-        detail_text = match.group(2).strip()
-        # Skip if detail is empty — don't create empty <span>
-        if not detail_text:
-            return match.group(0)  # Return original unchanged
-        return f'<span class="bullet-summary">{summary_text}:</span> {detail_text}'
-
-    processed = BULLET_SUMMARY_PATTERN.sub(_replace_bullet, md_text)
-
-    # Collapse 3+ newlines into 2
-    processed = re.sub(r'\n{3,}', '\n\n', processed)
-
-    return processed.strip()
-
-
-# ════════════════════════════════════════════════════════
-# PHASE 2: MARKDOWN → HTML CONVERSION
-# ════════════════════════════════════════════════════════
-
-def markdown_to_html(md_text: str) -> str:
-    """
-    Convert preprocessed Markdown string to HTML fragment.
-
-    Uses markdown-it-py if available (better spec compliance),
-    falls back to standard markdown library.
-    """
-    md_converter = _import_markdown_lib()
-
-    if md_converter is None:
-        # Fallback: use built-in markdown library
-        import markdown
-        extensions = ["tables", "fenced_code", "nl2br"]
-        return markdown.markdown(md_text, extensions=extensions)
-
-    # markdown-it-py path
-    return md_converter.render(md_text)
-
-
-# ════════════════════════════════════════════════════════
-# PHASE 2.5: HTML STRUCTURE MAPPING (bare tags → CSS classes)
-#
-# Architecture: Tokenize → Group into Sections → Per-section renderers
-#
-# Refactored from monolithic line-scanner to isolated, testable parsers.
-# Each _render_* function receives only its section's tokens and produces
-# a self-contained HTML fragment. No shared mutable state.
-# ════════════════════════════════════════════════════════
-
-# ── Data structures ──
-
-@dataclass
-class HtmlToken:
-    """A semantic chunk of the markdown-it HTML output."""
-    type: str                    # "h1" | "h2" | "h3" | "paragraph" | "list" | "empty"
-    raw_lines: list[str]         # original HTML lines belonging to this token
-    text: str = ""               # extracted plain text (for headings)
-
-
-@dataclass
-class Section:
-    """A resume section bounded by h2 headings."""
-    title: str                   # h2 text (empty for header section)
-    type: str                    # "header" | "education" | "experience" | "skills" | "projects" | "summary"
-    tokens: list[HtmlToken]
-
-
-# ── Shared patterns ──
-
-_DATE_RE = re.compile(
-    r'(\d{4}[\.\s]*\d*[\.\s]*\s*[–\-]\s*(?:至今|\d{4}[\.\s]*\d*))'
-)
-
-_CITY_NAMES = (
-    r'[\u4e00-\u9fff]+|Singapore|Beijing|Wuhan|Shanghai|'
-    r'Shenzhen|Hangzhou|Guangzhou|Chengdu|Nanjing|Xi\'an'
-)
-_LOC_RE = re.compile(r'\|\s*(' + _CITY_NAMES + r')\s*$')
-
-_BS_MARKER = '<span class="bullet-summary">'
-
-
-# ── Tokenizer ──
-
-def _tokenize(html: str) -> list[HtmlToken]:
-    """
-    Split raw markdown-it HTML output into semantic tokens.
-
-    Handles multi-line <p> and <ul>/<li> blocks by tracking open/close tags.
-    """
-    lines = html.strip().split('\n')
-    tokens: list[HtmlToken] = []
-    i = 0
-
-    while i < len(lines):
-        line = lines[i].strip()
-        if not line:
-            i += 1
-            continue
-
-        # Headings: single-line, self-contained
-        h1_m = re.match(r'<h1>(.+)</h1>', line)
-        if h1_m:
-            tokens.append(HtmlToken(type="h1", raw_lines=[line], text=h1_m.group(1)))
-            i += 1
-            continue
-
-        h2_m = re.match(r'<h2>(.+)</h2>', line)
-        if h2_m:
-            tokens.append(HtmlToken(type="h2", raw_lines=[line], text=h2_m.group(1)))
-            i += 1
-            continue
-
-        h3_m = re.match(r'<h3>(.+)</h3>', line)
-        if h3_m:
-            tokens.append(HtmlToken(type="h3", raw_lines=[line], text=h3_m.group(1)))
-            i += 1
-            continue
-
-        # List block: collect <ul>...<li>...</li>...</ul>
-        if '<ul>' in line or '<li>' in line:
-            block_lines = []
-            while i < len(lines):
-                cur = lines[i].strip()
-                if not cur:
-                    i += 1
-                    continue
-                if '<ul>' in cur or '<li>' in cur or '</ul>' in cur:
-                    block_lines.append(cur)
-                    if '</ul>' in cur:
-                        i += 1
-                        break
-                else:
-                    break
-                i += 1
-            tokens.append(HtmlToken(type="list", raw_lines=block_lines))
-            continue
-
-        # Paragraph: <p>...</p>, possibly multi-line
-        if '<p>' in line:
-            block_lines = []
-            while i < len(lines):
-                cur = lines[i].strip()
-                if not cur:
-                    i += 1
-                    continue
-                block_lines.append(cur)
-                if '</p>' in cur:
-                    i += 1
-                    break
-                i += 1
-            tokens.append(HtmlToken(type="paragraph", raw_lines=block_lines))
-            continue
-
-        # Fallback: pass through
-        tokens.append(HtmlToken(type="empty", raw_lines=[line]))
-        i += 1
-
-    return tokens
-
-
-# ── Section grouper ──
-
-_SECTION_TYPE_MAP = {
-    "教育": "education",
-    "education": "education",
-    "经历": "experience",
-    "实习": "experience",
-    "experience": "experience",
-    "work": "experience",
-    "技能": "skills",
-    "证书": "skills",
-    "skills": "skills",
-    "学术": "projects",
-    "项目": "projects",
-    "academic": "projects",
-    "projects": "projects",
-}
-
-
-def _classify_section(title: str) -> str:
-    """Map h2 title text to a section type."""
-    lower = title.lower()
-    for keyword, stype in _SECTION_TYPE_MAP.items():
-        if keyword in lower:
-            return stype
-    return "summary"
-
-
-def _group_into_sections(tokens: list[HtmlToken]) -> list[Section]:
-    """
-    Group tokens into sections bounded by h2 headings.
-    Everything before the first h2 becomes a "header" section.
-    """
-    sections: list[Section] = []
-    current: list[HtmlToken] = []
-    current_title = ""
-    current_type = "header"
-
-    for token in tokens:
-        if token.type == "h2":
-            # Flush current section
-            if current or current_type == "header":
-                sections.append(Section(
-                    title=current_title,
-                    type=current_type,
-                    tokens=current,
-                ))
-            current = []
-            current_title = token.text
-            current_type = _classify_section(token.text)
-        else:
-            current.append(token)
-
-    # Flush last section
-    if current:
-        sections.append(Section(
-            title=current_title,
-            type=current_type,
-            tokens=current,
-        ))
-
-    return sections
-
-
-# ── Shared header parsing utilities ──
-
-def _extract_date(text: str) -> tuple[str, str]:
-    """Extract date string from text, return (date_str, remaining_text)."""
-    m = _DATE_RE.search(text)
-    if m:
-        return m.group(1), text[:m.start()] + text[m.end():]
-    return "", text
-
-
-def _extract_location(text: str) -> tuple[str, str]:
-    """Extract city from last |-separated field, return (location, remaining_text)."""
-    m = _LOC_RE.search(text)
-    if m:
-        return m.group(1).strip(), text[:m.start()] + text[m.end():]
-    return "", text
-
-
-def _clean_dept(text: str) -> str:
-    """Strip HTML tags, pipes, and normalize whitespace for department text."""
-    text = re.sub(r'<[^>]+>', '', text)
-    text = re.sub(r'\s*\|\s*', ' ', text)
-    text = re.sub(r'\s+', ' ', text)
-    return text.strip()
-
-
-# ── Per-section renderers ──
-
-def _render_header_section(tokens: list[HtmlToken]) -> str:
-    """Render the header section (h1 name + contact info)."""
-    lines: list[str] = []
-    name = ""
-    contact_parts: list[str] = []
-
-    for token in tokens:
-        if token.type == "h1" and not name:
-            name = token.text
-        elif token.type == "paragraph":
-            # Extract text from <p>...</p>
-            combined = '\n'.join(token.raw_lines)
-            p_m = re.search(r'<p>(.+?)</p>', combined, re.DOTALL)
-            if p_m:
-                contact_parts = [p.strip() for p in p_m.group(1).split('|')]
-
-    lines.append('<div class="header">')
-    if name:
-        lines.append(f'  <h1>{name}</h1>')
-    if contact_parts:
-        lines.append('  <div class="contact-info">')
-        for part in contact_parts:
-            lines.append(f'    <span>{part}</span>')
-        lines.append('  </div>')
-    lines.append('</div>')
-    return '\n'.join(lines)
-
-
-def _render_education_items(tokens: list[HtmlToken]) -> str:
-    """
-    Render education section.
-    Each h3 starts a new education-item; following paragraph has school+date;
-    list items become edu-details.
-    """
-    lines: list[str] = []
-    i = 0
-
-    while i < len(tokens):
-        token = tokens[i]
-        if token.type != "h3":
-            i += 1
-            continue
-
-        degree_text = token.text
-        lines.append('<div class="education-item">')
-        lines.append('  <div class="edu-degree-row">')
-        lines.append(f'    <span class="degree">{degree_text}</span>')
-
-        # Look for school+date in next paragraph
-        date_str = ""
-        school_text = ""
-        if i + 1 < len(tokens) and tokens[i + 1].type == "paragraph":
-            p_token = tokens[i + 1]
-            combined = '\n'.join(p_token.raw_lines)
-            p_m = re.search(r'<p>(.+?)</p>', combined, re.DOTALL)
-            if p_m:
-                p_content = p_m.group(1)
-                date_str, p_content = _extract_date(p_content)
-                # Remove remaining pipes
-                p_content = re.sub(r'\s*\|\s*', ' ', p_content).strip()
-                p_content = re.sub(r'\s+', ' ', p_content)
-                school_text = p_content
-            i += 2
-        else:
-            i += 1
-
-        lines.append(f'    <span class="date">{date_str}</span>')
-        lines.append('  </div>')
-        if school_text:
-            lines.append(f'  <div class="edu-school">{school_text}</div>')
-
-        # Collect list items as edu-details
-        while i < len(tokens) and tokens[i].type in ("list", "paragraph"):
-            t = tokens[i]
-            if t.type == "list":
-                for raw_line in t.raw_lines:
-                    li_m = re.search(r'<li>(.+?)</li>', raw_line, re.DOTALL)
-                    if li_m:
-                        lines.append(f'  <div class="edu-details">{li_m.group(1)}</div>')
-            i += 1
-
-        lines.append('</div>')
-
-    return '\n'.join(lines)
-
-
-def _render_experience_items(tokens: list[HtmlToken]) -> str:
-    """
-    Render experience/project section.
-    Each h3 starts a new experience-item. Uses consume-all strategy:
-    all tokens after h3 (until next h3) belong to the current item.
-    """
-    lines: list[str] = []
-    i = 0
-
-    while i < len(tokens):
-        token = tokens[i]
-        if token.type != "h3":
-            i += 1
-            continue
-
-        h3_content = token.text
-        lines.append('<div class="experience-item">')
-        lines.append('  <div class="exp-header-row">')
-        lines.append(f'    <span class="company-title">{h3_content}</span>')
-        i += 1
-
-        # Consume all tokens until next h3
-        content_tokens: list[HtmlToken] = []
-        while i < len(tokens) and tokens[i].type != "h3":
-            content_tokens.append(tokens[i])
-            i += 1
-
-        # Combine all content into one text block
-        full_text = ""
-        for ct in content_tokens:
-            combined = '\n'.join(ct.raw_lines)
-            # Strip <p>...</p> and <ul>...</ul> wrappers
-            combined = re.sub(r'^\s*<p>\s*', '', combined, flags=re.DOTALL)
-            combined = re.sub(r'\s*</p>\s*$', '', combined, flags=re.DOTALL)
-            combined = re.sub(r'</?ul>\s*', '', combined)
-            if full_text:
-                full_text += '\n'
-            full_text += combined
-
-        full_text = full_text.strip()
-
-        # Split into header (before first bullet-summary) and bullets
-        bs_idx = full_text.find(_BS_MARKER)
-        if bs_idx >= 0:
-            header_part = full_text[:bs_idx].strip()
-            bullet_part = full_text[bs_idx:]
-        else:
-            header_part = full_text
-            bullet_part = ""
-
-        # Parse header: date, location, department
-        date_str, header_part = _extract_date(header_part)
-        loc_str, header_part = _extract_location(header_part)
-        dept_text = _clean_dept(header_part)
-
-        lines.append(f'    <span class="date-range">{date_str}</span>')
-        lines.append('  </div>')
-        if dept_text or loc_str:
-            lines.append('  <div class="exp-sub-row">')
-            if dept_text:
-                lines.append(f'    <span>{dept_text}</span>')
-            if loc_str:
-                lines.append(f'    <span class="location">{loc_str}</span>')
-            lines.append('  </div>')
-
-        # Parse bullets: each line starting with <span class="bullet-summary">
-        bullet_items = []
-        if bullet_part:
-            for bline in bullet_part.split('\n'):
-                bline = bline.strip()
-                # Strip <li>...</li> wrapper if present
-                li_m = re.match(r'<li>(.+)</li>', bline, re.DOTALL)
-                if li_m:
-                    bline = li_m.group(1).strip()
-                if _BS_MARKER in bline:
-                    bullet_items.append(bline)
-
-        if bullet_items:
-            lines.append('  <ul>')
-            for bullet in bullet_items:
-                lines.append(f'    <li>{bullet}</li>')
-            lines.append('  </ul>')
-
-        lines.append('</div>')
-
-    return '\n'.join(lines)
-
-
-def _render_skills_section(tokens: list[HtmlToken]) -> str:
-    """
-    Render skills section.
-    Extracts all bullet-summary spans from any container (<p> or <li>),
-    each becoming a separate .skill-entry div.
-    """
-    lines: list[str] = []
-
-    # Combine all content text
-    full_text = ""
-    for token in tokens:
-        combined = '\n'.join(token.raw_lines)
-        # Strip container tags: <p>, </p>, <li>, </li>, <ul>, </ul>
-        combined = re.sub(r'</?(?:p|li|ul)>', '', combined)
-        if full_text:
-            full_text += '\n'
-        full_text += combined
-
-    full_text = full_text.strip()
-
-    # Extract all bullet-summary pairs using findall
-    # Pattern: <span class="bullet-summary">title:</span> detail text
-    # The detail may contain anything until the next <span class="bullet-summary"> or end of string
-    pairs = re.findall(
-        r'<span class="bullet-summary">(.+?)</span>\s*([^<]*(?:<(?!span class="bullet-summary">)[^<]*)*)',
-        full_text,
-        re.DOTALL,
-    )
-    for summary, detail in pairs:
-        detail = re.sub(r'<br\s*/?\s*>', '', detail).strip()
-        lines.append(
-            f'<div class="skill-entry">'
-            f'<span class="bullet-summary">{summary}</span> {detail}'
-            f'</div>'
-        )
-
-    return '\n'.join(lines)
-
-
-def _render_paragraph_section(tokens: list[HtmlToken]) -> str:
-    """Render a generic paragraph section (e.g., personal summary)."""
-    lines: list[str] = []
-    for token in tokens:
-        if token.type == "paragraph":
-            combined = '\n'.join(token.raw_lines)
-            # Reconstruct <p>...</p> (may be multi-line)
-            p_m = re.search(r'<p>(.+?)</p>', combined, re.DOTALL)
-            if p_m:
-                lines.append(f'<p>{p_m.group(1)}</p>')
-    return '\n'.join(lines)
-
-
-# ── Dispatcher ──
-
-_RENDERER_MAP = {
-    "header": _render_header_section,
-    "education": _render_education_items,
-    "experience": _render_experience_items,
-    "projects": _render_experience_items,  # Same structure as experience
-    "skills": _render_skills_section,
-    "summary": _render_paragraph_section,
-}
-
-
-def _map_html_to_css_classes(html_fragment: str) -> str:
-    """
-    Transform bare HTML tags from markdown-it into semantic CSS classes.
-
-    Pipeline: tokenize → group into sections → per-section render.
-    """
-    tokens = _tokenize(html_fragment)
-    sections = _group_into_sections(tokens)
-
-    output_parts: list[str] = []
-    for section in sections:
-        # Emit section title
-        if section.title:
-            output_parts.append(f'<div class="section-title">{section.title}</div>')
-
-        # Dispatch to appropriate renderer
-        renderer = _RENDERER_MAP.get(section.type, _render_paragraph_section)
-        rendered = renderer(section.tokens)
-        if rendered.strip():
-            output_parts.append(rendered)
-
-    return '\n'.join(output_parts)
-
-
-# ════════════════════════════════════════════════════════
-# PHASE 3: JINJA2 TEMPLATE RENDERING (HTML + CSS)
-# ════════════════════════════════════════════════════════
-
-def _load_css() -> str:
-    """Read our resume CSS template."""
-    css_path = TEMPLATES_DIR / CSS_FILENAME
-    if not css_path.exists():
-        raise FileNotFoundError(f"CSS template missing: {css_path}")
-    return css_path.read_text(encoding="utf-8")
-
-
-def render_html_layout(html_body: str,
-                       snapshot_data: dict,
-                       output_path: Path,
-                       layout_mode: str = "normal") -> str:
-    """
-    Phase 3: Wrap HTML body fragment in our Jinja2 layout template.
-
-    The layout includes:
-      - <head> with our CSS embedded (inline for portability)
-      - A4 @page settings
-      - Semantic <body> structure matching our CSS classes
-    
-    Phase 2.5: Map bare HTML tags to CSS class structure before injection.
-
-    Args:
-        html_body: Raw HTML fragment from Phase 2
-        snapshot_data: context_snapshot.json contents
-        output_path: Where to write the rendered HTML
-        layout_mode: "normal" or "compact" (affects CSS spacing)
-    """
-    env = _import_jinja2()
-    css_content = _load_css()
-
-    # Phase 2.5: Transform bare markdown HTML → semantic CSS class structure
-    mapped_body = _map_html_to_css_classes(html_body)
-
-    # Extract metadata for template context
-    jd_facts = snapshot_data.get("jd_facts", {})
-    meta = snapshot_data.get("_meta", {})
-    user_prefs = snapshot_data.get("user_decisions", {}).get("user_preferences", {})
-
-    # Build header info from snapshot metadata if available
-    experiences = snapshot_data.get("user_decisions", {}).get("kept_experiences", [])
-
-    body_class = "compact" if layout_mode == "compact" else ""
-
-    template_context = {
-        "css_inline": css_content,
-        "body_html": mapped_body,
-        "body_class": body_class,
-        "role_title": jd_facts.get("role_title", "Resume"),
-        "company": jd_facts.get("company_name", ""),
-        "session_id": meta.get("session_id", ""),
-        "generated_at": meta.get("last_updated", ""),
-        "page_limit": user_prefs.get("page_limit", 1),
-        "experience_count": len(experiences),
-    }
-
-    # Check if layout template exists; if not, generate inline
-    layout_path = TEMPLATES_DIR / JINJA_TEMPLATE_NAME
-    if layout_path.exists():
-        template = env.get_template(JINJA_TEMPLATE_NAME)
-        html_output = template.render(**template_context)
-    else:
-        # Inline fallback layout (no external .j2 file needed)
-        html_output = _generate_inline_layout(template_context)
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(html_output, encoding="utf-8")
-    return str(output_path)
-
-
-def _generate_inline_layout(ctx: dict) -> str:
-    """Fallback layout when no .j2 template file exists."""
-    body_class_attr = f' class="{ctx["body_class"]}"' if ctx.get("body_class") else ""
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>{ctx['role_title']} | Resume Tailor</title>
-<style>
-{{{{ ctx['css_inline'] }}}}
-</style>
-</head>
-<body{body_class_attr}>
-<div class="page-container">
-{{{{ ctx['body_html'] }}}}
-</div>
-</body>
-</html>""".replace("{{{{", "{{").replace("}}}}", "}}")
-
-
-# ════════════════════════════════════════════════════════
-# PHASE 4a: PDF RENDERING (WeasyPrint)
-# ════════════════════════════════════════════════════════
-
-_WEASYPRINT_AVAILABLE = None  # Cached availability check
-
-
-def _check_weasyprint() -> bool:
-    """Check if WeasyPrint can be imported (needs GTK/Pango runtime)."""
-    global _WEASYPRINT_AVAILABLE
-    if _WEASYPRINT_AVAILABLE is not None:
-        return _WEASYPRINT_AVAILABLE
-    try:
-        import weasyprint
-        # Actually try to instantiate to catch GTK errors
-        weasyprint.HTML(string="<p>test</p>").render()
-        _WEASYPRINT_AVAILABLE = True
-    except Exception:
-        _WEASYPRINT_AVAILABLE = False
-    return _WEASYPRINT_AVAILABLE
-
-
-def render_pdf(html_path: str, output_pdf_path: str) -> dict:
-    """
-    Phase 4a: Convert HTML → PDF using WeasyPrint.
-
-    Returns:
-        dict with keys: path, page_count, warning (if pages > 1)
-    Raises:
-        RuntimeError: If WeasyPrint is unavailable.
-    """
-    if not _check_weasyprint():
-        raise RuntimeError(
-            "WeasyPrint is not available on this system. "
-            "On Windows, install GTK+ runtime first. "
-            "Falling back to HTML output."
-        )
-
-    from weasyprint import HTML, FontConfiguration
-
-    font_config = FontConfiguration()
-    doc = HTML(filename=html_path).render(font_config=font_config)
-
-    page_count = len(doc.pages)
-    doc.write_pdf(output_pdf_path)
+    lines = md_text.strip().split('\n')
 
     result = {
-        "path": output_pdf_path,
-        "page_count": page_count,
+        "name": "",
+        "subtitle": "",
+        "contact_items": [],
+        "sections": [],
     }
 
-    if page_count > 1:
-        result["warning"] = (
-            f"PDF exceeds 1-page limit ({page_count} pages). "
-            "Engine should trigger Architect compression instructions."
-        )
-        # Generate structured action for engine.py
-        result["engine_action"] = {
-            "type": "PAGE_OVERFLOW",
-            "current_pages": page_count,
-            "target_pages": 1,
-            "suggestion": (
-                "Instruct architect_writer node to reduce content by "
-                f"~{int((page_count - 1) / page_count * 100)}% "
-                "without removing core facts."
-            ),
-        }
+    # ── Phase A: Extract header (before first ##) ──
+    header_lines = []
+    body_start = 0
+    for i, line in enumerate(lines):
+        if re.match(r'^##\s', line):
+            body_start = i
+            break
+        header_lines.append(line)
+    else:
+        body_start = len(lines)
+
+    # Parse header lines
+    for line in header_lines:
+        line = line.strip()
+        if not line:
+            continue
+        # h1 → name
+        h1_m = re.match(r'^#\s+(.+)', line)
+        if h1_m and not result["name"]:
+            result["name"] = h1_m.group(1).strip()
+            continue
+        # Italic line → subtitle
+        italic_m = re.match(r'^\*([^*]+)\*$', line) or re.match(r'^_([^_]+)_$', line)
+        if italic_m and not result["subtitle"]:
+            result["subtitle"] = italic_m.group(1).strip()
+            continue
+        # Pipe-separated → contact items
+        if '|' in line:
+            parts = _CONTACT_SEP.split(line)
+            result["contact_items"] = [p.strip() for p in parts if p.strip()]
+            continue
+        # Plain text after name, no subtitle yet → subtitle
+        if result["name"] and not result["subtitle"]:
+            # Only use as subtitle if it's a short identity line (not full sentence)
+            if len(line) < 80 and '。' not in line:
+                result["subtitle"] = line
+                continue
+
+    # ── Phase B: Parse body sections (## delimited) ──
+    current_section = None
+    current_lines = []
+
+    for line in lines[body_start:]:
+        h2_m = re.match(r'^##\s+(.+)', line)
+        if h2_m:
+            # Flush previous section
+            if current_section is not None:
+                _flush_section(current_section, current_lines, result)
+            current_section = {
+                "type": _classify_section(h2_m.group(1)),
+                "title": h2_m.group(1).strip(),
+                "entries": [],
+                "raw_paragraph": "",
+            }
+            current_lines = []
+        else:
+            current_lines.append(line)
+
+    # Flush last section
+    if current_section is not None:
+        _flush_section(current_section, current_lines, result)
 
     return result
 
 
-# ════════════════════════════════════════════════════════
-# PHASE 4b: DOCX FALLBACK (pypandoc)
-# ════════════════════════════════════════════════════════
-
-def render_docx(md_path: str, output_docx_path: str) -> dict:
-    """
-    Phase 4b: Convert Markdown → clean DOCX via pypandoc.
-
-    Rationale: HTML→Word produces broken layouts due to different rendering engines.
-    pypandoc uses pandoc's native DOCX writer which respects Word's own styling model.
-
-    Returns:
-        dict with key: path
-    Raises:
-        RuntimeError: If pandoc/pypandoc is not available.
-    """
-    try:
-        import pypandoc
-        # Verify pandoc binary exists
-        if not pypandoc.get_pandoc_version():
-            raise RuntimeError("pandoc binary not found in PATH")
-    except ImportError:
-        raise RuntimeError(
-            "pypandoc not installed. Run: pip install pypandoc\n"
-            "Also ensure pandoc is installed: https://pandoc.org/installing.html"
+def _flush_section(section: dict, lines: list, result: dict):
+    """Parse accumulated lines into entries for a section."""
+    stype = section["type"]
+    if stype == "summary":
+        # Summary: just concatenate all non-empty lines
+        section["raw_paragraph"] = ' '.join(
+            l.strip() for l in lines if l.strip()
         )
+    else:
+        # Experience/Education/Projects/Skills: parse h3 entries + bullets
+        _parse_entries(section, lines)
 
-    output = pypandoc.convert_file(
-        md_path,
-        "docx",
-        outputfile=output_docx_path,
-        extra_args=[
-            "--reference-doc", str(TEMPLATES_DIR / "reference.docx"),
-        ] if (TEMPLATES_DIR / "reference.docx").exists() else [],
+    result["sections"].append(section)
+
+
+def _parse_entries(section: dict, lines: list):
+    """Parse h3-delimited entries with bullet points.
+    If no h3 headings found (e.g. skills section), all bullets go into one virtual entry."""
+    # First pass: detect if any h3 exists
+    has_h3 = any(re.match(r'^###\s+', l.strip()) for l in lines)
+
+    if not has_h3:
+        # Skills-style: no h3, just bullets — wrap in one virtual entry
+        bullets = []
+        for line in lines:
+            line_s = line.strip()
+            if not line_s:
+                continue
+            bm = re.match(r'^[-*]\s+\*\*(.+?)\*\*\s*[:：]\s*(.+)', line_s)
+            if bm:
+                bullets.append({"prefix": bm.group(1).strip(), "detail": bm.group(2).strip()})
+                continue
+            pb = re.match(r'^[-*]\s+(.+)', line_s)
+            if pb:
+                bullets.append({"prefix": "", "detail": pb.group(1).strip()})
+        section["entries"] = [{"title": "", "subtitle": "", "date": "", "bullets": bullets}]
+        return
+
+    # Has h3: standard entry parsing
+    entries = []
+    current_entry = None
+    current_bullets = []
+    current_sub_lines = []
+
+    for line in lines:
+        line_stripped = line.strip()
+        h3_m = re.match(r'^###\s+(.+)', line_stripped)
+        if h3_m:
+            if current_entry:
+                current_entry["bullets"] = current_bullets
+                entries.append(current_entry)
+            current_entry = {
+                "title": h3_m.group(1).strip(),
+                "subtitle": "",
+                "date": "",
+                "bullets": [],
+            }
+            current_bullets = []
+            current_sub_lines = []
+            continue
+
+        if not current_entry:
+            continue
+
+        if not line_stripped:
+            if current_sub_lines:
+                _flush_sub_info(current_entry, current_sub_lines)
+                current_sub_lines = []
+            continue
+
+        bullet_m = re.match(r'^[-*]\s+\*\*(.+?)\*\*\s*[:：]\s*(.+)', line_stripped)
+        if bullet_m:
+            if current_sub_lines:
+                _flush_sub_info(current_entry, current_sub_lines)
+                current_sub_lines = []
+            current_bullets.append({"prefix": bullet_m.group(1).strip(), "detail": bullet_m.group(2).strip()})
+            continue
+
+        plain_bullet = re.match(r'^[-*]\s+(.+)', line_stripped)
+        if plain_bullet:
+            if current_sub_lines:
+                _flush_sub_info(current_entry, current_sub_lines)
+                current_sub_lines = []
+            current_bullets.append({"prefix": "", "detail": plain_bullet.group(1).strip()})
+            continue
+
+        current_sub_lines.append(line_stripped)
+
+    if current_entry:
+        if current_sub_lines:
+            _flush_sub_info(current_entry, current_sub_lines)
+        current_entry["bullets"] = current_bullets
+        entries.append(current_entry)
+
+    section["entries"] = entries
+
+
+def _flush_sub_info(entry: dict, sub_lines: list):
+    """Parse subtitle lines: extract date + org/department/meta."""
+    combined = ' '.join(sub_lines).strip()
+    if not combined:
+        return
+
+    # Extract date from subtitle text
+    date_m = _DATE_RE.search(combined)
+    if date_m:
+        entry["date"] = date_m.group(0)
+        combined = _DATE_RE.sub('', combined).strip()
+
+    # Clean pipes
+    combined = re.sub(r'\s*\|\s*', ' · ', combined)
+    combined = re.sub(r'\s+', ' ', combined).strip()
+    entry["subtitle"] = combined
+
+
+# ════════════════════════════════════════════════════════
+# HTML GENERATORS (per section type)
+# ════════════════════════════════════════════════════════
+
+def _gen_summary_html(section: dict) -> str:
+    """Generate summary section HTML block."""
+    text = section.get("raw_paragraph", "")
+    if not text:
+        return ""
+    title = section.get("title", "个人总结")
+    return (
+        f'<div class="section-title">{title}</div>\n'
+        f'<p class="summary-text">{text}</p>\n'
     )
 
-    return {"path": output_docx_path or output_docx_path}
+
+def _gen_entry_section_html(section: dict) -> str:
+    """
+    Generate HTML for experience / projects / education sections.
+    Matches the Swiss template's CSS classes:
+      .exp-item > .exp-header (grid: .exp-role + .exp-date) > .exp-sub > .exp-bullets
+    """
+    title = section.get("title", "")
+    entries = section.get("entries", [])
+    stype = section.get("type", "experience")
+
+    if not entries:
+        return ""
+
+    # Build section
+    parts = [f'<div class="section-title">{title}</div>\n']
+
+    for entry in entries:
+        parts.append('<div class="exp-item">')
+
+        # Entry header row: role + date (grid)
+        entry_title = entry.get("title", "")
+        entry_date = entry.get("date", "")
+        parts.append('  <div class="exp-header">')
+        parts.append(f'    <span class="exp-role">{entry_title}</span>')
+        if entry_date:
+            parts.append(f'    <span class="exp-date">{entry_date}</span>')
+        parts.append('  </div>')
+
+        # Subtitle row (org / department / GPA / location)
+        subtitle = entry.get("subtitle", "")
+        if subtitle:
+            parts.append(f'  <div class="exp-sub">{subtitle}</div>')
+
+        # Bullets
+        bullets = entry.get("bullets", [])
+        if bullets:
+            parts.append('  <ul class="exp-bullets">')
+            for b in bullets:
+                prefix = b.get("prefix", "")
+                detail = b.get("detail", "")
+                if prefix:
+                    parts.append(
+                        f'    <li><span class="bullet-label">{prefix}</span> {detail}</li>'
+                    )
+                else:
+                    parts.append(f'    <li>{detail}</li>')
+            parts.append('  </ul>')
+
+        parts.append('</div>\n')
+
+    return '\n'.join(parts)
+
+
+def _gen_skills_html(section: dict) -> str:
+    """Generate skills section HTML block."""
+    title = section.get("title", "技能与证书")
+    entries = section.get("entries", [])
+
+    parts = [f'<div class="section-title">{title}</div>\n']
+    parts.append('<div class="skills-grid">')
+
+    for entry in entries:
+        entry_title = entry.get("title", "")
+        bullets = entry.get("bullets", [])
+        for b in bullets:
+            prefix = b.get("prefix", "")
+            detail = b.get("detail", "")
+            if prefix:
+                parts.append(
+                    f'  <div class="skill-entry">'
+                    f'<span class="skill-label">{prefix}</span> {detail}'
+                    f'</div>'
+                )
+            elif detail:
+                parts.append(f'  <div class="skill-entry">{detail}</div>')
+
+    parts.append('</div>')
+    return '\n'.join(parts)
+
+
+# ════════════════════════════════════════════════════════
+# TEMPLATE SUBSTITUTION
+# ════════════════════════════════════════════════════════
+
+def _load_template() -> str:
+    """Load the Swiss HTML template."""
+    path = TEMPLATES_DIR / SWISS_TEMPLATE
+    if not path.exists():
+        raise FileNotFoundError(f"Template not found: {path}")
+    return path.read_text(encoding="utf-8")
+
+
+def _fill_template(parsed: dict, template: str) -> str:
+    """Substitute all {{PLACEHOLDER}} blocks with parsed content."""
+    # Header
+    html = template.replace("{{NAME}}", parsed.get("name", ""))
+
+    # Subtitle block
+    subtitle = parsed.get("subtitle", "")
+    if subtitle:
+        html = html.replace(
+            "{{SUBTITLE_BLOCK}}",
+            f'<div class="resume-subtitle">{subtitle}</div>'
+        )
+    else:
+        html = html.replace("{{SUBTITLE_BLOCK}}", "")
+
+    # Contact items
+    contacts = parsed.get("contact_items", [])
+    if contacts:
+        contact_html = '\n    '.join(
+            f'<span>{c}</span>' for c in contacts
+        )
+        html = html.replace("{{CONTACT_ITEMS}}", contact_html)
+    else:
+        html = html.replace("{{CONTACT_ITEMS}}", "")
+
+    # Section blocks
+    sections_by_type = {}
+    for s in parsed.get("sections", []):
+        stype = s["type"]
+        if stype == "summary":
+            sections_by_type["summary"] = _gen_summary_html(s)
+        elif stype in ("experience", "projects", "education"):
+            sections_by_type[stype] = _gen_entry_section_html(s)
+        elif stype == "skills":
+            sections_by_type["skills"] = _gen_skills_html(s)
+
+    # Fill each section block (or leave empty)
+    html = html.replace("{{SUMMARY_BLOCK}}", sections_by_type.get("summary", ""))
+    html = html.replace("{{EXPERIENCE_SECTION}}", sections_by_type.get("experience", ""))
+    html = html.replace("{{PROJECTS_SECTION}}", sections_by_type.get("projects", ""))
+    html = html.replace("{{EDUCATION_SECTION}}", sections_by_type.get("education", ""))
+    html = html.replace("{{SKILLS_SECTION}}", sections_by_type.get("skills", ""))
+
+    # Meta
+    html = html.replace("{{META_EXTRA}}", "")
+
+    return html
 
 
 # ════════════════════════════════════════════════════════
@@ -1045,26 +441,17 @@ def render_docx(md_path: str, output_docx_path: str) -> dict:
 
 def render(snapshot_path: str, output_dir: str = None) -> RenderResult:
     """
-    Main rendering entry point.
+    Main rendering entry point — compatible with engine.py v3.x.
 
-    Reads snapshot.json, extracts draft markdown, runs the full pipeline:
-      1. Preprocess Markdown (semantic patterns)
-      2. MD → HTML conversion
-      3. Jinja2 layout rendering (with CSS injection)
-      4a. WeasyPrint → PDF (if requested & available)
-      4b. pypandoc → DOCX (if requested & available)
-
-    Design contract with engine.py:
-      - This function READS snapshot.json only. It NEVER writes back.
-      - All state mutations (e.g., recording page count) are returned via RenderResult.
-      - engine.py is responsible for merging any engine_action into the snapshot.
+    Reads snapshot.json, extracts the Writer's Markdown draft,
+    fills the Swiss HTML template, and writes the result.
 
     Args:
         snapshot_path: Absolute path to context_snapshot.json
         output_dir: Directory for outputs (defaults to session dir)
 
     Returns:
-        RenderResult with paths and status information.
+        RenderResult with html_path and status.
     """
     result = RenderResult()
     snap_path = Path(snapshot_path)
@@ -1073,12 +460,7 @@ def render(snapshot_path: str, output_dir: str = None) -> RenderResult:
         result.errors.append(f"Snapshot not found: {snapshot_path}")
         return result
 
-    # --- Environment check ---
-    env_status = check_rendering_environment()
-    if env_status["warnings"]:
-        result.warnings.extend(env_status["warnings"])
-
-    # --- Load snapshot (READ-ONLY) ---
+    # Load snapshot (READ-ONLY)
     with open(snap_path, "r", encoding="utf-8") as f:
         snapshot_data = json.load(f)
 
@@ -1087,7 +469,7 @@ def render(snapshot_path: str, output_dir: str = None) -> RenderResult:
         output_dir = str(snap_path.parent)
     out = Path(output_dir)
 
-    # --- Locate draft markdown ---
+    # Locate draft markdown
     draft_rel_path = snapshot_data.get("expert_outputs", {}).get("writer_draft_path")
     if not draft_rel_path:
         result.errors.append("No writer_draft_path found in snapshot expert_outputs.")
@@ -1100,87 +482,34 @@ def render(snapshot_path: str, output_dir: str = None) -> RenderResult:
 
     md_text = draft_full_path.read_text(encoding="utf-8")
 
-    # Save raw markdown as intermediate artifact
+    # Save raw Markdown as deliverable
     md_out = out / "tailored_resume.md"
     md_out.write_text(md_text, encoding="utf-8")
     result.md_path = str(md_out)
 
-    user_prefs = snapshot_data.get("user_decisions", {}).get("user_preferences", {})
-    output_format = user_prefs.get("output_format", "html")  # Default: HTML preview
+    # Load template
+    try:
+        template = _load_template()
+    except FileNotFoundError as e:
+        # Graceful degradation: Markdown only
+        result.warnings.append(f"Template missing: {e}. Delivering Markdown only.")
+        result.success = True
+        return result
 
-    # === Phase 1: Preprocess ===
-    processed_md = preprocess_markdown(md_text)
+    # Parse + render
+    try:
+        parsed = _parse_markdown(md_text)
+        html_output = _fill_template(parsed, template)
 
-    # Save preprocessed markdown for debugging
-    pp_md_out = out / "tailored_resume_preprocessed.md"
-    pp_md_out.write_text(processed_md, encoding="utf-8")
+        html_out = out / "tailored_resume.html"
+        html_out.write_text(html_output, encoding="utf-8")
+        result.html_path = str(html_out)
+        result.success = True
 
-    # === Phase 2: MD → HTML Fragment ===
-    html_fragment = markdown_to_html(processed_md)
-
-    # === Phase 3: Jinja2 Layout ===
-    html_out = out / "tailored_resume.html"
-    layout_mode = user_prefs.get("layout_mode", "normal")
-    html_path = render_html_layout(html_fragment, snapshot_data, html_out, layout_mode=layout_mode)
-    result.html_path = html_path
-    result.success = True
-
-    # === Phase 4a: PDF (if requested) ===
-    if output_format in ("pdf", "both"):
-        pdf_out = out / "tailored_resume.pdf"
-        try:
-            pdf_result = render_pdf(html_path, str(pdf_out))
-            result.pdf_path = pdf_result["path"]
-            result.page_count = pdf_result["page_count"]
-
-            # Auto-switch to compact if overflow detected and page_limit is 1
-            page_limit = user_prefs.get("page_limit", 1)
-            if pdf_result["page_count"] > page_limit and layout_mode == "normal":
-                result.warnings.append(
-                    f"PDF is {pdf_result['page_count']} pages (limit: {page_limit}). "
-                    "Auto-switching to compact layout."
-                )
-                layout_mode = "compact"
-                html_path = render_html_layout(
-                    html_fragment, snapshot_data, html_out, layout_mode="compact"
-                )
-                result.html_path = html_path
-                # Re-render PDF with compact layout
-                pdf_result = render_pdf(html_path, str(pdf_out))
-                result.pdf_path = pdf_result["path"]
-                result.page_count = pdf_result["page_count"]
-                if pdf_result["page_count"] > page_limit:
-                    result.warnings.append(
-                        f"Compact layout still {pdf_result['page_count']} pages. "
-                        "Consider reducing content."
-                    )
-
-            if "warning" in pdf_result:
-                result.warnings.append(pdf_result["warning"])
-            if "engine_action" in pdf_result:
-                result.engine_action = pdf_result["engine_action"]
-
-        except RuntimeError as e:
-            result.warnings.append(f"PDF generation failed: {e}")
-            # Graceful degradation: tell user how to get PDF manually
-            result.warnings.append(
-                "Fallback: Open the generated HTML in Chrome/Firefox and Print→Save as PDF."
-            )
-
-    # === Phase 4b: DOCX (if requested) ===
-    if output_format in ("docx", "both"):
-        docx_out = out / "tailored_resume.docx"
-        try:
-            docx_result = render_docx(str(md_out), str(docx_out))
-            result.docx_path = docx_result["path"]
-        except RuntimeError as e:
-            result.warnings.append(f"DOCX generation failed: {e}")
-
-    # === Summary ===
-    if output_format == "pdf" and not result.pdf_path:
+    except Exception as e:
+        result.errors.append(f"Rendering failed: {e}")
         result.warnings.append(
-            "PDF could not be generated. HTML output is available as fallback. "
-            "For best results, open HTML in a modern browser and use Print→Save as PDF."
+            "Fallback: Markdown draft is available for manual formatting."
         )
 
     return result
@@ -1191,49 +520,22 @@ def render(snapshot_path: str, output_dir: str = None) -> RenderResult:
 # ════════════════════════════════════════════════════════
 
 def main():
-    """CLI entry point for testing: python renderer.py <snapshot.json> [output_dir] [format]"""
+    """CLI entry point: python renderer.py <snapshot.json> [output_dir]"""
     import argparse
 
-    parser = argparse.ArgumentParser(description="Resume Tailor Renderer v3.0")
+    parser = argparse.ArgumentParser(description="Resume Tailor Renderer v3.3")
     parser.add_argument("snapshot", help="Path to context_snapshot.json")
     parser.add_argument("output_dir", nargs="?", default=None, help="Output directory")
-    parser.add_argument("--format", dest="fmt", default="html",
-                        choices=["html", "pdf", "docx", "both"],
-                        help="Output format (default: html)")
     args = parser.parse_args()
 
-    # Override format from CLI if provided
-    if args.fmt:
-        # Patch snapshot preferences
-        snap_path = Path(args.snapshot)
-        if snap_path.exists():
-            with open(snap_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            data.setdefault("user_decisions", {}).setdefault("user_preferences", {})[
-                "output_format"
-            ] = args.fmt
-            # Write back temporarily (or just pass through)
-            # We'll handle this by accepting format override in render()
-
-    print(f"[Renderer] Processing: {args.snapshot}")
-
-    # Show environment status
-    env = check_rendering_environment()
-    if env["warnings"]:
-        print(f"\n[Environment Check]")
-        for w in env["warnings"]:
-            print(f"  ⚠️  {w}")
-        print()
-
+    print(f"[Renderer v3.3] Processing: {args.snapshot}")
     result = render(args.snapshot, args.output_dir)
 
     print(f"\n{'='*50}")
     print(f"Status: {'SUCCESS' if result.success else 'FAILED'}")
     print(f"\nOutputs:")
-    print(f"  Markdown:  {result.md_path or 'N/A'}")
-    print(f"  HTML:      {result.html_path or 'N/A'}")
-    print(f"  PDF:       {result.pdf_path or 'N/A'} (pages: {result.page_count})")
-    print(f"  DOCX:      {result.docx_path or 'N/A'}")
+    print(f"  Markdown: {result.md_path or 'N/A'}")
+    print(f"  HTML:     {result.html_path or 'N/A'}")
 
     if result.warnings:
         print(f"\nWarnings ({len(result.warnings)}):")
@@ -1244,10 +546,6 @@ def main():
         print(f"\nErrors ({len(result.errors)}):")
         for e in result.errors:
             print(f"  ❌ {e}")
-
-    if result.engine_action:
-        print(f"\nEngine Action Required:")
-        print(json.dumps(result.engine_action, indent=2, ensure_ascii=False))
 
     return 0 if result.success else 1
 

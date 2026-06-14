@@ -200,18 +200,27 @@ Your output flows through this pipeline:
 
 ```
 Your Markdown (this file)                    ← YOU ARE HERE
-    ↓ Phase 1: Regex Preprocessing
-    **Summary**: text → <span class="bullet-summary">Summary:</span> text
-    ↓ Phase 2: MD → HTML Fragment
-    markdown-it-py converts your Markdown to HTML
-    ↓ Phase 3: Jinja2 Layout
-    HTML fragment injected into our CSS skeleton (resume_template.css)
-    ↓ Phase 4a/b: Output
-    WeasyPrint → PDF  OR  pypandoc → DOCX  OR  HTML preview
+    ↓
+renderer.py parses your Markdown into structured data
+  - h1 → name, pipe-separated → contact items
+  - h2 → section boundaries (experience/education/projects/skills)
+  - h3 → entry titles within sections
+  - **Prefix**: → bullet summary prefix + detail
+    ↓
+Template substitution → templates/resume_swiss.html
+  {{NAME}} {{SUBTITLE_BLOCK}} {{CONTACT_ITEMS}}
+  {{EXPERIENCE_SECTION}} {{PROJECTS_SECTION}}
+  {{EDUCATION_SECTION}} {{SKILLS_SECTION}}
+    ↓
+Filled HTML (Swiss International Style)
+  Single-file, zero dependencies, browser-openable
+  Ctrl+P → Save as PDF
 ```
 
-**Key insight**: You write plain Markdown. The renderer applies ALL styling.
-You do NOT need to write HTML, CSS classes, or worry about layout.
+**Key insight**: You write plain Markdown. The renderer parses it, maps content
+to the Swiss HTML template, and fills the placeholders. You do NOT need to write
+HTML, CSS classes, or worry about layout. The template is the single source of
+truth for styling.
 
 ### The Golden Rule of Bullet Formatting
 
@@ -227,8 +236,8 @@ Every single bullet point under Work Experience MUST use this exact pattern:
 | Component | Syntax | Purpose |
 |-----------|--------|---------|
 | List marker | `-` (dash + space) | Standard unordered list |
-| Summary prefix | `**Bold Text**:` | Gets transformed by regex into `<span class="bullet-summary">` — renders **bold** in final output |
-| Colon separator | `:` (ASCII colon) | Separator between summary and detail |
+| Summary prefix | `**Prefix**:` | Bold prefix extracted by the parser, rendered as `<strong>` in output |
+| Colon separator | `:` (ASCII colon, `：` CJK also supported) | Separator between prefix and detail |
 | Detail text | Plain text after colon | Normal body text |
 
 #### ✅ VALID Examples (ALL of these will be correctly processed)
@@ -238,19 +247,19 @@ Every single bullet point under Work Experience MUST use this exact pattern:
 
 - **Stakeholder Reporting**: Automated dashboard creation with Power BI, serving 15+ business stakeholders across 3 departments.
 
-- **Cross-functional Collaboration**:Coordinated with engineering, product, and finance teams to align data requirements.  (no space after colon — still works!)
+- **Cross-functional Collaboration**: Coordinated with engineering, product, and finance teams to align data requirements.  (no space after colon — still works!)
 
-- **系统搭建**: 从零设计并实施财务报表自动化体系，覆盖数据采集到报表生成全流程。（中文内容 — works fine）
+- **系统搭建**：从零设计并实施财务报表自动化体系，覆盖数据采集到报表生成全流程。（中文内容 — works fine）
 ```
 
 #### ❌ INVALID Examples (will NOT render correctly)
 
 ```markdown
-- Built ETL pipelines using Python and SQL.                          ← Missing **Summary**: prefix
+- Built ETL pipelines using Python and SQL.                          ← Missing **Prefix**: pattern
 - *Data Pipeline*: Built ETL pipelines...                            ← Wrong bold syntax (italic *)
 - **Data Pipeline Development** – Built ETL pipelines...             ← Em-dash instead of colon
-- <span class="bullet-summary">Summary:</span> text                  ← Don't write HTML!
-- **Summary**:                                                       ← Empty detail (skipped by renderer)
+- <span class="bullet-label">Summary:</span> text                  ← Don't write HTML!
+- **Summary**:                                                       ← Empty detail (skipped by parser)
 ```
 
 ### Complete Draft Structure Template
@@ -351,8 +360,8 @@ Only these Markdown constructs are allowed in the final draft:
 | Construct | Usage | Renders As |
 |-----------|-------|------------|
 | `#` `##` `###` | Section headings | CSS-styled section titles |
-| `- ` | Unordered list items | Bullet points with `.bullet-summary` styling |
-| `**text**:` | Bold + colon (ONLY for bullet summaries) | `<span class="bullet-summary">text:</span>` (bold) |
+| `- ` | Unordered list items | Bullet points with `.bullet-label` prefix styling |
+| `**text**:` | Bold + colon (ONLY for bullet prefixes) | `<span class="bullet-label">text</span>` (bold prefix) |
 | `*text*` | Italics (for department names only) | Italicized department |
 | `\|` pipe | Separator in contact info / experience sub-header | Visual separator |
 | Plain text | Everything else | Body text |
@@ -371,13 +380,13 @@ Only these Markdown constructs are allowed in the final draft:
 | Images `![](path)` | Not supported in resume rendering |
 | Code blocks `` ``` `` | Not needed for resumes; write tool names as plain text |
 | Multiple blank lines (>2) | Collapsed to 2 by preprocessor anyway |
-| Bold `**text**` OUTSIDE `**Summary**:` pattern | Confuses the regex. Only use bold for bullet summaries. |
+| Bold `**text**` OUTSIDE `**Prefix**:` pattern | Only parsed as bullet prefix. Other uses will be treated as plain text |
 
 ### Special Cases & Edge Cases
 
 #### Case 1: Very Long Detail Text
 
-If a bullet point is long enough to wrap multiple lines, that's fine — the regex uses `DOTALL` flag:
+If a bullet point is long enough to wrap multiple lines, that's fine — the parser handles multi-line content:
 
 ```markdown
 - **Enterprise Data Platform Migration**: Led the end-to-end migration from legacy Oracle DW to cloud-based Snowflake,
@@ -420,7 +429,7 @@ For candidates with only one significant experience (e.g., new graduates):
 
 Run through this checklist before writing the `writer_draft` file:
 
-- [ ] Every bullet under Work Experience starts with `**Summary**:` pattern
+- [ ] Every bullet under Work Experience starts with `**Prefix**:` pattern
 - [ ] No bullet uses `**bold**` for anything other than the summary prefix
 - [ ] No HTML tags anywhere in the document
 - [ ] Sections appear in the correct order (Header → Summary → Education → Experience → Skills → Certs)
@@ -487,7 +496,7 @@ Data analyst with 2+ years of experience in financial reporting automation and c
 ```
 
 Study this example. Notice:
-- **Every bullet** follows `**Summary**:` pattern
+- **Every bullet** follows `**Prefix**:` pattern
 - **Zero HTML** — pure Markdown throughout
 - **Two-row experience headers** with correct formatting
 - **Clean contact info** with pipe separators
@@ -549,5 +558,5 @@ When draft is complete and ready for auditor:
 3. **Don't skip CP3 or CP4.** They are always executed regardless of tier.
 4. **Don't auto-translate language without offering choice.** Translation is CP4 suggestion, not automatic.
 5. **Don't generate .docx yourself.** Your output is Markdown. Rendering is handled by the Renderer node.
-6. **Don't write HTML tags.** The renderer handles all HTML generation. Your job is pure Markdown.
-7. **Don't use `**bold**` outside the `**Summary**:` pattern.** It confuses the regex preprocessor. If you need emphasis, restructure the sentence so the emphasized part becomes the summary prefix.
+6. **Don't write HTML tags.** The renderer generates all HTML structure. Your job is pure Markdown.
+7. **Don't use `**bold**` outside the `**Prefix**:` pattern.** Bold text is only recognized as a bullet prefix in list items. If you need emphasis, restructure the sentence so the emphasized part becomes the summary prefix.

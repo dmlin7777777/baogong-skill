@@ -152,6 +152,14 @@ body {
 /* First section after header — reduced top margin */
 .section-title:first-of-type { margin-top: var(--sp-4); }
 
+/* Summary paragraph */
+.summary-text {
+  font-size: var(--fs-body);
+  line-height: var(--lh-tight);
+  color: var(--ink);
+  margin: 0 0 var(--sp-3);
+}
+
 /* ═══════════════════════════════════════
    HEADER
    ═══════════════════════════════════════ */
@@ -363,27 +371,29 @@ body {
 </div>
 
 <!-- ═══════════════════════════════════════
+     SUMMARY (optional)
+     ═══════════════════════════════════════ -->
+{{SUMMARY_BLOCK}}
+
+<!-- ═══════════════════════════════════════
      EXPERIENCE
      ═══════════════════════════════════════ -->
-<div class="section-title">{{SECTION_EXPERIENCE}}</div>
+{{EXPERIENCE_SECTION}}
 
-{{EXPERIENCE_BLOCKS}}
+<!-- ═══════════════════════════════════════
+     PROJECTS (optional)
+     ═══════════════════════════════════════ -->
+{{PROJECTS_SECTION}}
 
 <!-- ═══════════════════════════════════════
      EDUCATION
      ═══════════════════════════════════════ -->
-<div class="section-title">{{SECTION_EDUCATION}}</div>
-
-{{EDUCATION_BLOCKS}}
+{{EDUCATION_SECTION}}
 
 <!-- ═══════════════════════════════════════
      SKILLS
      ═══════════════════════════════════════ -->
-<div class="section-title">{{SECTION_SKILLS}}</div>
-
-<div class="skills-grid">
-{{SKILL_ENTRIES}}
-</div>
+{{SKILLS_SECTION}}
 
 <!-- ═══════════════════════════════════════
      META

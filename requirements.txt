@@ -1,18 +1,19 @@
-# Resume Tailor v3 — Python Dependencies
+# Resume Tailor v3.3 — Python Dependencies
 
-# --- v3.0 Rendering Pipeline ---
-jinja2>=3.1.0                # Template engine (rendering pipeline)
-markdown-it-py>=3.0.0        # Markdown → HTML (preferred parser)
-python-markdown>=3.5.0       # Fallback MD parser if markdown-it-py unavailable
-weasyprint>=60.0             # PDF generation (requires GTK/Pango runtime)
-pypandoc>=1.17               # DOCX generation via pandoc
-pyyaml>=6.0                  # YAML support in snapshot schema
+# --- v3.3 Rendering Pipeline (zero-dependency) ---
+#   Template-based: Markdown draft → parser → {{PLACEHOLDER}} substitution → HTML
+#   No Jinja2, markdown-it, WeasyPrint, or pandoc required.
+#   Browser prints HTML → PDF directly (Ctrl+P).
 
 # --- v2.x Resume I/O (still used) ---
 python-docx>=0.8.11          # .docx reading and writing
 pdfplumber>=0.10.0           # PDF reading (recommended — best quality)
+pyyaml>=6.0                  # YAML support in snapshot schema
+
+# --- Removed in v3.3 ---
+#   jinja2, markdown-it-py, python-markdown, weasyprint, pypandoc
+#   — replaced by zero-dependency template substitution pipeline.
 
 # --- Optional fallbacks (auto-detected at runtime) ---
 #   PyPDF2>=3.0.0            — Python native PDF fallback, no system dependency
 #   pdftotext (CLI)          — https://poppler.freedesktop.org/
-#   pandoc (CLI)             — Required for pypandoc DOCX output

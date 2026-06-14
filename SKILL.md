@@ -530,15 +530,14 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 
 | 模板变量 | 来源 | 说明 |
 |---------|------|------|
-| `{{NAME}}` | resume_master.md 个人信息 → 姓名 | 顶部大标题（300 weight） |
+| `{{NAME}}` | resume_master.md 个人信息 → 姓名 | 顶部大标题 |
 | `{{SUBTITLE_BLOCK}}` | 目标岗位 / 一句话定位 | 可选，无则留空 |
 | `{{CONTACT_ITEMS}}` | 邮箱、电话、城市、LinkedIn、GitHub | 各一个 `<span>` |
-| `{{SECTION_EXPERIENCE}}` | "工作经历" / "Experience" | 节标题 |
-| `{{EXPERIENCE_BLOCKS}}` | Phase 4a draft 的 experience 节 | 每个经历 = 一个 `.exp-item` |
-| `{{SECTION_EDUCATION}}` | "教育背景" / "Education" | 节标题 |
-| `{{EDUCATION_BLOCKS}}` | 学历信息 | 每个学历 = 一个 `.edu-item` |
-| `{{SECTION_SKILLS}}` | "技能" / "Skills" | 节标题 |
-| `{{SKILL_ENTRIES}}` | 技能列表 | 每个 skill = 一个 `.skill-entry` |
+| `{{SUMMARY_BLOCK}}` | 个人总结段 | 可选，无则留空（含 section-title + 段落） |
+| `{{EXPERIENCE_SECTION}}` | 工作经历整节（标题 + 条目） | 每个经历 = 一个 `.exp-item` |
+| `{{PROJECTS_SECTION}}` | 项目经历整节 | 可选，结构与 experience 相同 |
+| `{{EDUCATION_SECTION}}` | 教育背景整节（标题 + 条目） | 每个学历 = 一个 `.edu-item` |
+| `{{SKILLS_SECTION}}` | 技能整节（标题 + skills-grid） | 每个 skill = 一个 `.skill-entry` |
 | `{{META_EXTRA}}` | 公司名、日期等元信息 | 非打印区生成信息 |
 
 #### Output Naming Convention
@@ -583,7 +582,8 @@ Phase 4a Writer → {date}_{company}_{role}.md （Markdown 草稿，始终产出
                     │
                     └──→ 模板替换 → {date}_{company}_{role}.html （主交付物）
                          模板：templates/resume_swiss.html
-                         瑞士国际主义风，单文件自包含
+                         渲染方式：renderer.py 解析 MD，填充 {{SECTION}} 级占位符
+                         瑞士国际主义风，单文件自包含，零外部依赖
                          浏览器直接打开，Ctrl+P → 保存为 PDF
 ```
 
@@ -605,7 +605,7 @@ Phase 4a Writer → {date}_{company}_{role}.md （Markdown 草稿，始终产出
 
 **渲染降级**：
 - 模板文件缺失 → 直接 Markdown 交付，HTML 生成跳过，不报错不中断
-- **零依赖降级**：不需要任何 Python 包（无 markdown-it-py、Jinja2、WeasyPrint、pandoc）
+- **零依赖降级**：不需要任何 Python 包。renderer.py 仅使用 Python 标准库（json、re、pathlib）
 
 ## Output Structure
 
@@ -615,8 +615,7 @@ Phase 4a Writer → {date}_{company}_{role}.md （Markdown 草稿，始终产出
 ├── project-story-library.md         # 故事库（Mode B 唯一事实来源）
 ├── schemas/snapshot_schema_v1.json  # Protocol definition
 ├── templates/
-│   ├── resume_swiss.html            # HTML 模板（瑞士国际主义风，v3.3 新增）
-│   ├── resume_template.css          # 旧版 CSS（保留兼容）
+│   ├── resume_swiss.html            # HTML 模板（瑞士国际主义风，v3.3 主模板）
 │   └── state_update_template.md
 ├── references/                      # Expert node guides
 │   ├── writer_guide.md
@@ -680,4 +679,4 @@ Phase 4a Writer → {date}_{company}_{role}.md （Markdown 草稿，始终产出
 
 ## Dependencies
 
-> 详见 README.md 的 Dependencies 节。SKILL.md 不重复列出。
+> v3.3 起渲染管线为零外部依赖（仅 Python 标准库）。简历读取仍需要 python-docx + pdfplumber（解析 .docx/.pdf 源文件）。详见 README.md 的 Dependencies 节。
