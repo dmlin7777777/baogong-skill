@@ -134,6 +134,22 @@ If this block is missing or malformed, the output is rejected and a reformat req
 }
 ```
 
+### Architect — Draft Output (architect_wording / CP5)
+
+```json
+{
+  "node": "architect_wording",
+  "status": "writer_draft",
+  "delta": {
+    "expert_outputs": {
+      "writer_draft_path": "history/2026-04-15_pwc_da.md"
+    }
+  },
+  "flags": [],
+  "message": "CP5 draft written to history/. Ready for auditor review."
+}
+```
+
 ### Auditor — Sincerity Check (auditor_sincerity)
 
 ```json
