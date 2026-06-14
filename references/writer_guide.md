@@ -44,6 +44,89 @@ Wording Changes: {confirmed_wording_changes}
 
 ---
 
+## Mode Router: Mode A (Tailor) vs Mode B (Story Library)
+
+This guide is called in **two distinct operating modes**. Before executing Sub-nodes A/B/C, identify which mode is active:
+
+| Signal | Mode | What You Do |
+|--------|------|-------------|
+| Snapshot has `jd_facts` with `jd_text`, `company_name`, `role_title` | **Mode A — Resume Tailoring** | Full pipeline: selection → gap analysis → quantification → wording. All sub-nodes active. |
+| Snapshot has `mode_b.active` or user asked to "create story library" / "录入经历" / "build stories" | **Mode B — Story Library Creation** | Only Sub-node A (experience recording). No JD alignment. No gap analysis. No wording upgrade (except optional verb suggestions). |
+
+### Mode B: Story Library Writer Guide
+
+In Mode B, you help the user build a **project-story-library.md** — a structured, interview-ready catalog of experiences. There is no target JD. The output is raw material for future Mode A runs.
+
+#### Sub-node A Adaptations (architect_writer in Mode B)
+
+**CP1 (Experience Recording) — replaces Selection**
+
+Instead of selecting from existing resume:
+
+1. **Probe sequentially**: Work through the user's career timeline in reverse chronological order, one role at a time.
+2. **For each role**, guide the user through STAR recording:
+
+```markdown
+## {Company} — {Role}
+> 一句话概括：{1-line summary of what you did}
+
+### {Project / Achievement Name}
+- 背景：{business context, team size, product scope}
+- 我的角色：{your specific contribution — use "I" not "we"}
+- 难点：{the hardest technical/coordination challenge}
+- 结果：{quantifiable outcome — numbers preferred, process description acceptable}
+- 技术栈：{tools, languages, frameworks used}
+
+**面试追问准备：**
+- {potential interviewer challenge 1}
+- {potential interviewer challenge 2}
+```
+
+3. **Quantify aggressively in first pass**: Don't wait for CP3. Ask for numbers during story recording.
+
+#### Mode B Checkpoints (replaces CP2–CP5)
+
+| Checkpoint | Action |
+|-----------|--------|
+| **CB1 — Completeness** | Each entry has Role + Summary + Context + Contribution + Challenge + Outcome. Flag missing fields. |
+| **CB2 — Quantification** | Every entry has at least a process description (numbers preferred but not forced). Apply Anti-Filler Rule — no empty adjectives. |
+| **CB3 — Interview Prep** | At least 2 follow-up questions per entry, based on the challenge/outcome content. |
+| **CB4 — Organization** | Entries organized by company/role, sorted reverse chronological within each role. |
+
+#### Mode B State Updates
+
+```json
+{
+  "node": "architect_writer",
+  "status": "mode_b_story_recording",
+  "delta": {
+    "user_decisions": {
+      "story_library_entries": [
+        {
+          "company": "...",
+          "role": "...",
+          "project": "...",
+          "recorded": true,
+          "quantified": true
+        }
+      ]
+    }
+  },
+  "flags": ["MODE_B"],
+  "message": "Recorded [N] stories. CB1-CB2 passed. [X] entries pending quantification."
+}
+```
+
+#### What NOT to do in Mode B
+
+1. **Don't reference JD** — there is none. No "JD requires X" rationale.
+2. **Don't make matching suggestions** — no "this maps to requirement Y."
+3. **Don't skip quantification** — Mode B is your ONE chance to capture numbers before Mode A needs them.
+4. **Don't generate a resume draft** — output goes to `project-story-library.md`, not `writer_draft`.
+5. **Don't apply cultural tone slider** — tone is determined by target region in Mode A, not in Mode B.
+
+---
+
 ## Sub-node A: Experience Selection & Gap Analysis (architect_writer)
 
 ### CP1: Experience Selection

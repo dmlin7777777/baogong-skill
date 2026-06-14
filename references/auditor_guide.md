@@ -12,6 +12,7 @@
   - `jd_facts` from Layer 1 (JD requirements, target region)
   - `user_decisions` from Layer 2 (what was changed and why)
   - The tailored resume draft at `expert_outputs.writer_draft_path`
+  - **Phase 1 interview intel**: `history/{date}_{company}_{role}_interview_intel.md` (when available — contains real interview questions and hidden checkpoints discovered via S1 web search)
 - Reference file: `references/reverse_audit_checklist.md`
 
 ## Your Tasks (3 Sub-Nodes)
@@ -90,14 +91,29 @@ Check EVERY bullet against these categories:
 
 ### Sub-node C: Interview Preparation (auditor_interview)
 
+**Interview intel priority (v3.3):** When Phase 1 interview intel is available (S1 web search results), use it as the **primary source** for mock questions. Real interview experiences from the same company/role carry more weight than persona-based guesswork.
+
 For every 🔴 MAJOR issue identified in B-2:
 
 #### Mock Questions
 
-Generate 2-3 specific, challenging follow-up questions. NOT generic ones.
+Generate 2-3 specific, challenging follow-up questions. Prioritize sourcing from:
+
+1. **S1 Interview Intel** (if available): Direct quotes from real interview experiences — "面经反馈中面试官重点追问了 X..." → craft a question targeting that exact area
+2. **Persona-based extrapolation** (fallback): Use the interviewer persona from Step B-1
+3. **Resume gap targeting**: Target areas where the bullet is weakest
 
 ❌ Generic: "Can you tell me more about this project?"
 ✅ Specific: "You mentioned 'reduced close cycle from 5 days to 6 hours' — what was the single biggest bottleneck you removed, and why hadn't anyone addressed it before?"
+✅ Intel-backed: "脉脉面经提到 {公司} 面试官喜欢问 SQL 优化细节。你简历里的'搭建 ETL 管道'，如果面试官追问查询性能调优，你会怎么回答？"
+
+#### Intel Integration Rules
+
+When interview intel exists:
+- At least 1 question per 🔴 issue MUST cite or address a topic from the intel
+- Flag the source in your output: `🎤 [面经驱动]` or `🎤 [Persona]`
+- Cross-reference: "面经显示面试官重视 X 能力，但你简历里对应内容只有 1 行——你怎么应对这个落差？"
+- If intel reveals a hidden check that the resume didn't address: flag as 🟡 MINOR even if the resume is clean otherwise
 
 #### STAR Preparation Sheets
 
@@ -199,6 +215,9 @@ ATS Keywords: {ats_keywords}
 Kept Experiences: {kept_experiences} (with position_order)
 Confirmed Quantifications: {confirmed_quantifications}
 Wording Changes: {confirmed_wording_changes}
+
+[Interview Intel — from Phase 1 S1 web search]
+{interview_intel_content or "Not available — no S1 web search performed"}
 
 [Tailored Resume Draft]
 {content of writer_draft_path}

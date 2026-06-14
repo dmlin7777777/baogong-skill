@@ -57,13 +57,9 @@ class RenderResult:
     """Structured result of a rendering pass, compatible with engine.py."""
     success: bool = False
     html_path: Optional[str] = None
-    pdf_path: Optional[str] = None
-    docx_path: Optional[str] = None
     md_path: Optional[str] = None
-    page_count: int = 1
     warnings: list = field(default_factory=list)
     errors: list = field(default_factory=list)
-    engine_action: Optional[dict] = None
 
 
 # ════════════════════════════════════════════════════════

@@ -2,6 +2,78 @@
 
 All notable changes to this project will be documented in this file.
 
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+## [3.3] - 2026-06-14
+
+### Added
+- **3-tier structured web search** in Phase 1 replacing vague "market research":
+  - S1 — Interview experience mining: searches `"{Company} {Role} interview experience"` / `"{Role} interview questions"` to extract real interviewer checkpoints and hidden requirements
+  - S2 — Company culture & real work: searches `"Working at {Company} as {Role}"` / `"{Company} tech stack"` to calibrate Phase 2 skill matching weights and CP4 cultural tone slider
+  - S3 — Business signals: searches `"{Company} business focus"` / `"{Company} org changes"` to feed `risk_warnings` and `capability_clusters` targeting
+  - Search results saved as `{date}_{company}_{role}_interview_intel.md` in `history/`
+- **Phase 4c integration**: Mock interview questions now sourced from real interview experiences (S1)
+- **A6 anti-pattern updated**: Every search round must land on a specific downstream node or don't run
+
+### Changed
+- **Rendering pipeline refactor — zero-dependency template substitution**:
+  - **Old**: MD → markdown-it → Jinja2 → WeasyPrint PDF + pandoc DOCX (4 external package dependencies)
+  - **New**: MD → `renderer.py` (pure stdlib: json/re/pathlib) → template substitution → HTML
+  - Removed dependencies: jinja2, markdown-it-py, python-markdown, weasyprint, pypandoc
+- **HTML template** replaced with Swiss International Style (`templates/resume_swiss.html`):
+  - Information-first, zero decoration (no shadows, radius, gradients)
+  - Typographic hierarchy: weight inversely proportional to size (300 → 400 → 600)
+  - Single-file, CSS variable-driven, no external dependencies
+  - A4 print-optimized: `@page { size: A4; margin: 0 }` + browser-native printing
+  - Fonts: Inter (Latin) + Noto Sans SC / Microsoft YaHei (CJK)
+- **Template placeholders**: Switched from per-field Jinja2 templates to section-level `{{PLACEHOLDER}}` blocks (e.g. `{{EXPERIENCE_SECTION}}` carries full HTML)
+- **DOCX removed** as an output format entirely. PDF is now user-side via browser Ctrl+P
+- **`output_format` schema default** changed from `"docx"` to `"html"`; `"docx"` enum value removed
+- **Delivery priority**: Markdown primary (Phase 4a Writer direct output) + HTML primary (rendered output)
+
+### Fixed
+- **Print cutoff on date column**: `@page { margin }` + browser print dialog margins caused double compression → fixed with `@page { margin: 0 }` + body padding as margin
+- **Date regex**: Extended to match "Present", "Current", and "至今" patterns in addition to numeric dates
+- **Skills section parsing**: Fixed crash when skills section has no h3 subheadings — now wraps all bullets as a virtual entry
+
+## [3.2] - 2026-05-31
+
+### Added
+- **Darwin Skill 5-round optimization**: 76 → **92** (+16) on the 9-dimension SkillLens rubric
+- **Onboarding Check**: Global pre-flight gate — `resume_master.md` missing → Init-A before anything else
+- **Init-A (Master Resume)**: 3 intake paths (paste/file/5-round questionnaire) → structured `resume_master.md`
+- **Init-B (Story Library)**: Guided per-experience STAR recording with quantification + interview prep
+- **Agent Execution Anti-Patterns (A1–A7)**: LLM-specific error prevention rules:
+  - A1: Writer/Auditor isolation violation
+  - A2: MODE misjudgment without confirmation
+  - A3: STATE_UPDATE silent failure
+  - A4: Phase order reordering
+  - A5-A7: Empty web_search calls, quantification fabrication, confirmation skipping
+- **CP4 Wording Boundary**: Explicit table of allowed (verb/tone/structure) vs forbidden (fabrication, scope inflation) edits
+- **Mode Detection Protocol**: ≥50-char threshold distinguishes real JDs from vague role names; mandatory confirmation for ambiguous input
+- **Required permissions declaration** in frontmatter (Read/Write/Glob/WebFetch/WebSearch/Bash)
+
+### Changed
+- **Error handling concretized**: All 9 error cases → specific action instructions; snapshot corruption backup-and-rebuild flow added
+- **Mode A story library integration**: CP3 quantification priority chain (story lib > user reply > process description)
+- **All `error:` language** replaced with structured primary/fallback action columns
+
+## [3.1] - 2026-05-30
+
+### Added
+- **Init-A (Master Resume creation)**: Auto-detect existing resume files → structured `resume_master.md`; or 5-round guided questionnaire from scratch
+- **Init-B (Story Library creation)**: Per-experience STAR + quantification + interview prep recording
+- **Darwin Skill 9-dim evaluation**: 74.3 → 90.5 (+16.2)
+- **Historical version audit (Step 4e)**: Prevents quantification regression by comparing against last 3 versions
+- **Story library protocol**: 3-layer token-efficient extraction + cross-validation in audit
+- **9 STOP/CHECKPOINT markers** + 2 delivery gates to prevent autonomous drift
+- **Pseudo-multi-agent architecture** with isolated Scout / Architect / Auditor nodes
+- **Blackboard state protocol** via `context_snapshot.json` (4-layer schema v1.1)
+- **HTML rendering pipeline** with Jinja2 templates + CSS styling
+- **WeasyPrint PDF** output with page overflow detection → automatic compression trigger
+- **pypandoc DOCX** clean conversion (no HTML→Word formatting issues)
+- **Nuance buffer** + **conversation history** for cross-node context continuity
+
 ## [3.0.3] - 2026-05-31
 
 ### Added
