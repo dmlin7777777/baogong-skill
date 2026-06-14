@@ -365,12 +365,11 @@
             "output_format": {
               "type": "string",
               "enum": [
-                "docx",
+                "html",
                 "pdf",
-                "markdown",
-                "html"
+                "markdown"
               ],
-              "default": "docx"
+              "default": "html"
             },
             "page_limit": {
               "type": "integer",

@@ -127,7 +127,7 @@ class Snapshot:
                     "tone_level": 3,  # Default neutral
                 },
                 "user_preferences": {
-                    "output_format": "docx",
+                    "output_format": "html",
                     "page_limit": 1,
                     "include_shadow_resume": False,
                 },
