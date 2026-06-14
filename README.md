@@ -103,11 +103,11 @@ Most AI resume tools **rewrite** your bullets to sound fancy. This one **coaches
 
 You don't just get a tailored resume. You get a **job search toolkit**.
 
-### 📄 Tailored Resume (PDF / HTML / DOCX)
+### 📄 Tailored Resume (HTML / Markdown)
 Optimized for the specific JD and target region:
-- **PDF**: WeasyPrint-rendered with CSS template (Times New Roman + Microsoft YaHei), single-page layout
-- **HTML**: Browser-ready with print-optimized CSS (use Print → Save as PDF if WeasyPrint unavailable)
-- **DOCX**: Clean Markdown-to-Word via pypandoc (no style baggage)
+- **HTML**: Swiss International Style (`templates/resume_swiss.html`), single-file, zero dependencies, A4 print-optimized
+- **Markdown**: Readable, diffable, Git-friendly — the "source code" of your resume
+- **PDF**: Not auto-generated. Use browser Ctrl+P → Save as PDF from the HTML file
 
 ### 📊 Audit Log
 Every modification is tracked:
@@ -146,13 +146,13 @@ IELTS 7.5 ≈ CET-6 550+. The system maps credentials across regions and keeps t
 
 ---
 
-## Architecture: v3.0 Pseudo-Multi-Agent
+## Architecture: LLM-as-Orchestrator + Blackboard State
 
-Resume Tailor v3.0 uses a **pseudo-multi-agent blackboard architecture**:
+Resume Tailor v3.3 runs as an **LLM-as-orchestrator** skill. The LLM reads `SKILL.md`, advances through phases, and calls `scripts/` tools as needed. No Python process drives the LLM — the LLM drives the Python tools.
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                  engine.py (Orchestrator)            │
+│  LLM (reads SKILL.md, advances through Phases)      │
 │                                                     │
 │  ┌──────────┐    ┌──────────────┐   ┌────────────┐ │
 │  │  Scout    │───▶│  Architect    │───▶│  Auditor   │ │
@@ -160,14 +160,14 @@ Resume Tailor v3.0 uses a **pseudo-multi-agent blackboard architecture**:
 │  └──────────┘    └──────────────┘   └────────────┘ │
 │       │                 │                  │        │
 │       ▼                 ▼                  ▼        │
-│  context_snapshot.json (Blackboard / Single Source) │
-│  ── Facts Layer (JD + Resume + Research)            │
-│  ── Decisions Layer (User choices + metadata)       │
-│  ── Outputs Layer (Draft + Audit log)               │
+│  engine.py: Snapshot (Blackboard / Single Source)   │
+│  ── jd_facts layer (JD + Resume + Research)         │
+│  ── user_decisions layer (User choices + metadata)  │
+│  ── expert_outputs layer (Draft + Audit log)        │
 │                                                     │
 │  ┌──────────────────────────────────────────┐      │
-│  │         renderer.py (Rendering Pipeline)  │      │
-│  │  MD → preprocess → Jinja2 → PDF/HTML/DOCX│      │
+│  │    renderer.py: MD → parse → HTML          │      │
+│  │    (pure stdlib, zero dependencies)        │      │
 │  └──────────────────────────────────────────┘      │
 └─────────────────────────────────────────────────────┘
 ```
@@ -183,42 +183,43 @@ Resume Tailor v3.0 uses a **pseudo-multi-agent blackboard architecture**:
 
 ### State Protocol
 
-All state lives in `context_snapshot.json` — a layered JSON document:
+All state lives in `snapshot.json` — a layered JSON document:
 - **Layer 0 (`_meta`)**: Session metadata, turn history, nuance buffer
-- **Layer 1 (`facts`)**: Raw JD + resume + market research
-- **Layer 2 (`user_decisions`)**: All user confirmations, overrides, metadata
-- **Layer 3 (`outputs`)**: Final draft, audit log, interview prep
+- **Layer 1 (`jd_facts`)**: Raw JD + resume + research data
+- **Layer 2 (`user_decisions`)**: All user confirmations, overrides, preferences
+- **Layer 3 (`expert_outputs`)**: Node outputs (scout report, draft, audit log)
 
 ---
 
-## Rendering Pipeline
+## Rendering Pipeline (v3.3)
 
-v3.0 introduces a **CSS-first rendering pipeline** that replaces direct python-docx manipulation:
+v3.3 uses a **zero-dependency template substitution pipeline**:
 
 ```
-Layer 3 Draft (Markdown)
-    ↓ Phase 1: Regex Preprocessing
-    "**Summary**: detail" → "<span class='bullet-summary'>Summary:</span> detail"
-    ↓ Phase 2: MD → HTML Fragment
-    markdown-it-py (preferred) / markdown (fallback)
-    ↓ Phase 3: Jinja2 Layout
-    CSS-inlined complete HTML document
-    ↓ Phase 4a: WeasyPrint → PDF (with page overflow detection)
-    ↓ Phase 4b: pypandoc → DOCX (clean conversion)
+Phase 4a Writer Output (Markdown)
+    ↓
+renderer.py: Parse Markdown into structured sections
+  - h1 → name + contact items
+  - h2 → section boundaries (summary/experience/education/skills)
+  - h3 → entry titles
+  - **Prefix**: detail → bullet label + body
+    ↓
+Template substitution → templates/resume_swiss.html
+  {{NAME}} {{SUBTITLE_BLOCK}} {{CONTACT_ITEMS}}
+  {{SUMMARY_BLOCK}} {{EXPERIENCE_SECTION}}
+  {{PROJECTS_SECTION}} {{EDUCATION_SECTION}}
+  {{SKILLS_SECTION}}
+    ↓
+Filled HTML (Swiss International Style)
+  Single-file, pure Python stdlib, no external packages
+  Browser Ctrl+P → Save as PDF
 ```
 
 **Key Design Decisions:**
-- **Jinja2 as glue** — No string concatenation in code. Templates drive layout.
-- **WeasyPrint over pdfkit** — Proper Flexbox/Grid + CSS print support.
-- **pypandoc for DOCX** — Avoids HTML→Word formatting chaos.
-- **Page overflow detection** — If `len(doc.pages) > 1`, triggers Architect's compression instructions.
-
-### CSS Template Features
-- **Single-column flow layout**, no icons, centered name header
-- **Dual font stack**: Times New Roman (Latin/Digits) + Microsoft YaHei (CJK)
-- **Experience format**: Company · **Title** \| Date + *Department* \| Location (flexible 2-row)
-- **Bullet style**: `<span class="bullet-summary">Bold summary:</span>` detail text
-- **Compact spacing** with dynamic content adjustment (target: ≤1 page)
+- **Template substitution over Jinja2** — No template engine. Simple `str.replace()` with Python stdlib.
+- **Section-level placeholders** — {{EXPERIENCE_SECTION}} carries full HTML block, not per-field templates.
+- **No PDF/DOCX dependencies** — Browser handles PDF conversion natively. DOCX dropped entirely.
+- **renderer.py is pure stdlib** — `json`, `re`, `pathlib` only. No pip install needed.
 
 ---
 
@@ -263,21 +264,19 @@ resume-tailor/
 ├── SKILL.md                              # Skill definition & workflow routing table
 ├── README.md                             # This file
 ├── README.zh-CN.md                       # Chinese documentation
-├── requirements.txt                      # Python dependencies (v3.0 + v2.x)
+├── requirements.txt                      # Python dependencies (v3.3 — zero-dependency rendering)
 ├── schemas/
 │   └── snapshot_schema_v1.json           # Snapshot schema (v1.1 with nuance_buffer)
 ├── templates/
-│   ├── resume_template.css               # CSS template (Tech Style, single-column)
-│   ├── resume_layout.html.j2             # Jinja2 layout skeleton
-│   ├── resume_preview_sample.html        # Preview demo with anonymized data
+│   ├── resume_swiss.html                 # Swiss International Style template (CSS variable-driven)
 │   └── state_update_template.md          # STATE_UPDATE JSON template & examples
 ├── scripts/
-│   ├── engine.py                         # Pipeline orchestrator (pseudo-multi-agent loop)
-│   ├── renderer.py                       # Rendering pipeline (MD → HTML → PDF/DOCX)
+│   ├── engine.py                         # State management (Snapshot, Snapshot, parse_state_update)
+│   ├── renderer.py                       # MD → HTML renderer (pure stdlib)
 │   ├── jd_parser.py                      # JD + resume structured extraction
 │   ├── diff_audit.py                     # Source vs tailored change analysis
 │   ├── ats_checker.py                    # ATS compatibility scoring (5-region profiles)
-│   ├── main.py                           # v2.x CLI interface (legacy)
+│   ├── main.py                           # Unified CLI (parse / diff / ats)
 │   └── utils.py                          # Shared utilities (JSON validation, PII, etc.)
 ├── references/
 │   ├── writer_guide.md                   # Writer node instruction manual (Phase 1 + CP1-CP5)
@@ -297,21 +296,24 @@ resume-tailor/
 <summary>⚙️ Dependencies</summary>
 
 ```bash
-# Core dependencies
-jinja2>=3.1.0              # Template engine (rendering pipeline)
-markdown-it-py>=3.0.0      # Markdown → HTML (preferred parser)
-pypandoc>=1.17             # DOCX generation via pandoc
-weasyprint>=60.0           # PDF generation (requires GTK/Pango runtime)
+# Core dependencies (v3.3 — zero-dependency rendering)
+python-docx>=0.8.11          # .docx reading and writing
+pdfplumber>=0.10.0           # PDF reading (recommended — best quality)
+pyyaml>=6.0                  # YAML support in snapshot schema
 
-# Optional / fallback
-python-markdown>=3.5.0     # Fallback MD parser if markdown-it-py unavailable
-pyyaml>=6.0                # YAML support in snapshot schema
+# Removed in v3.3
+#   jinja2, markdown-it-py, python-markdown, weasyprint, pypandoc
+#   — replaced by zero-dependency template substitution pipeline.
+
+# Optional fallbacks (auto-detected at runtime)
+#   PyPDF2>=3.0.0            — Python native PDF fallback, no system dependency
+#   pdftotext (CLI)          — https://poppler.freedesktop.org/
 ```
 
-**Note:** WeasyPrint requires platform-specific runtimes:
-- **Windows**: Install GTK+ and Pango via MSYS2 or download binaries
-- **macOS/Linux**: Usually available via system package manager
-- **Graceful degradation**: If WeasyPrint unavailable, outputs browser-ready HTML with "Print → Save as PDF" prompt.
+**Note:** The rendering pipeline has zero external dependencies.
+- `renderer.py` uses only Python stdlib (`json`, `re`, `pathlib`).
+- HTML is the primary output format. PDF is generated via browser Ctrl+P.
+- `python-docx` and `pdfplumber` are only needed for **reading** source resumes — not for output generation.
 
 </details>
 
@@ -319,32 +321,41 @@ pyyaml>=6.0                # YAML support in snapshot schema
 <summary>🔧 Script Usage</summary>
 
 ```bash
-# Check rendering environment (fonts, WeasyPrint, pandoc)
-python scripts/renderer.py check-env
+# JD feature extraction
+python scripts/main.py parse jd.txt --file --resume resume.docx --json
 
-# Render a draft snapshot (snapshot.json → PDF/HTML/DOCX)
-python scripts/renderer.py render --snapshot sessions/abc123/snapshot.json --output-dir output/
+# Diff source vs tailored resume
+python scripts/main.py diff --source resume_master.md --tailored tailored.md --json
 
-# Note: engine.py is a library module (not directly runnable).
-# It is called via run_orchestration_loop(llm_call_fn, snapshot) from the AI agent.
-# For CLI usage, see scripts/main.py (v2.x legacy interface).
+# ATS compatibility check
+python scripts/main.py ats --resume tailored.md --keywords "Python,SQL" --region north_america
+
+# Render Markdown draft to Swiss-style HTML
+python scripts/renderer.py render --draft draft.md --output output/
 ```
+
+**Note:** `engine.py` provides the `Snapshot` class and `parse_state_update()` — called by the LLM via `python -c "from scripts.engine import Snapshot; ..."`. There is no Python-driven orchestration loop. The LLM reads `SKILL.md`, advances through phases, and calls scripts as tools.
 
 </details>
 
 <details>
-<summary>🎨 Customizing CSS</summary>
+<summary>🎨 Customizing Style</summary>
 
-Edit `templates/resume_template.css`. Key variables in `:root`:
+Edit `templates/resume_swiss.html`. All styles are inline in the `<style>` block, driven by CSS custom properties in `:root`:
 
 ```css
---primary-color: #1f2937;      /* Text color */
---font-size-base: 9.5pt;       /* Body text size */
---section-gap: 7pt;            /* Space between sections */
---item-gap: 5pt;               /* Space between experience items */
+:root {
+  --ink: #2d3748;              /* Body text color */
+  --ink-light: #718096;        /* Secondary text */
+  --rule: #e2e8f0;             /* Divider line color */
+  --fs-body: 11pt;             /* Body text size */
+  --lh-tight: 1.5;             /* Line height */
+  --sp-3: 10px;                /* Section spacing */
+  --grid-col-gap: 10px;        /* Date column gap */
+}
 ```
 
-The CSS is designed for **A4 portrait, single page**. Adjust spacing variables to fit more or less content.
+The template is designed for **A4 portrait, single page**. Adjust `--fs-body` and padding values to fit more or less content.
 
 </details>
 
