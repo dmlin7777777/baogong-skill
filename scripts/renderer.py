@@ -210,10 +210,16 @@ def _parse_entries(section: dict, lines: list):
             if current_entry:
                 current_entry["bullets"] = current_bullets
                 entries.append(current_entry)
+            h3_text = h3_m.group(1).strip()
+            h3_date = ""
+            h3_date_m = _DATE_RE.search(h3_text)
+            if h3_date_m:
+                h3_date = h3_date_m.group(0)
+                h3_text = _DATE_RE.sub('', h3_text).strip().rstrip('|').strip()
             current_entry = {
-                "title": h3_m.group(1).strip(),
+                "title": h3_text,
                 "subtitle": "",
-                "date": "",
+                "date": h3_date,
                 "bullets": [],
             }
             current_bullets = []
@@ -547,4 +553,6 @@ def main():
 
 
 if __name__ == "__main__":
+    for _s in (sys.stdout, sys.stderr, sys.stdin):
+        _s.reconfigure(encoding="utf-8")
     sys.exit(main())

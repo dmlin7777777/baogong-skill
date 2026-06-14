@@ -206,7 +206,7 @@ def check_special_chars(text: str) -> list:
         "\U0001F680-\U0001F6FF"  # transport & map
         "\U0001F1E0-\U0001F1FF"  # flags
         "\U00002702-\U000027B0"
-        "\U000024C2-\U0001F251"
+        "\U0001F200-\U0001F251"
         "\U0001F900-\U0001F9FF"  # supplemental symbols
         "\U0001FA00-\U0001FA6F"  # chess symbols
         "\U0001FA70-\U0001FAFF"  # symbols extended
@@ -784,4 +784,6 @@ def main():
 
 
 if __name__ == "__main__":
+    for _s in (sys.stdout, sys.stderr, sys.stdin):
+        _s.reconfigure(encoding="utf-8")
     main()

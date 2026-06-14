@@ -106,7 +106,7 @@ class Snapshot:
                 "role_level": jd_result.get("role_level", "unknown"),
                 "hard_requirements": [
                     {**req, "info_status": req.get("info_status", "pending")}
-                    for req in jd_result.get("requirements", [])
+                    for req in jd_result.get("hard_requirements", [])
                 ],
                 "soft_requirements": jd_result.get("soft_requirements", []),
                 "capability_clusters": jd_result.get("capability_clusters", []),
@@ -389,8 +389,8 @@ def parse_state_update(text: str) -> Optional[dict]:
 # ════════════════════════════════════════════════════════
 
 def slugify(text: str) -> str:
-    """Convert text to URL-safe slug."""
-    return re.sub(r'[^a-z0-9_]+', '_', text.lower()).strip('_')
+    """Convert text to filesystem-safe slug. Preserves CJK characters."""
+    return re.sub(r'[^a-z0-9一-鿿_]+', '_', text.lower()).strip('_')
 
 
 def _fmt_reqs(reqs: list) -> str:

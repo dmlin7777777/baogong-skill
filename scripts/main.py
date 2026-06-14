@@ -162,4 +162,6 @@ def main():
 
 
 if __name__ == "__main__":
+    for _s in (sys.stdout, sys.stderr, sys.stdin):
+        _s.reconfigure(encoding="utf-8")
     main()
