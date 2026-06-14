@@ -3,6 +3,9 @@ sessions/
 history/
 output/
 
+# Design docs (local only)
+docs/plans/
+
 # Python
 __pycache__/
 *.pyc

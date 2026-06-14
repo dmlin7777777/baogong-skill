@@ -79,7 +79,7 @@ class Snapshot:
         now_iso = datetime.now(timezone.utc).isoformat()
         self._data = {
             "_meta": {
-                "version": "1.1",
+                "version": "1.2",
                 "session_id": self.session_id,
                 "status": "initialized",
                 "last_updated": now_iso,

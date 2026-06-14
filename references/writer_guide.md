@@ -233,6 +233,23 @@ When a bullet lacks quantification, probe in rounds:
 
 ## Sub-node C: Wording Upgrade (architect_wording)
 
+### Information Status Marking（信息状态标记）
+
+在 CP4 措辞升级和 CP5 草稿生成过程中，每条 bullet 的关键声明（数字、动词等级、技能、成果）必须在 snapshot 中标注信息来源状态：
+
+| 标记 | 状态 | 含义 | 示例 |
+|------|------|------|------|
+| `[✓]` | confirmed | 用户在本轮对话中明确确认 | 用户说"对，月度从5天缩短到6小时" |
+| `[?]` | pending | 从 resume_master.md / 故事库提取，尚未本轮确认 | 简历原文写的数字，直接搬用 |
+| `[~]` | inferred | 模型根据上下文推断，用户未直接提供 | 从"负责财务系统"推断用户"熟练使用SAP" |
+
+**规则**：
+- `[✓]` confirmed → 直接写入草稿，无需额外确认
+- `[?]` pending → 可写入草稿，但 Auditor 会标注为需确认项
+- `[~]` inferred → **🔴 禁止直接写入最终草稿**。必须在某个 CP 中向用户确认，转为 `[✓]` 后才能使用；用户否认则删除
+- 最终交付物（MD/HTML）不包含标记符号——标记仅存在于 snapshot 的 `confirmed_quantifications` 和审计日志中
+- 在 `confirmed_quantifications` 中记录格式：`{"bullet_id": {"value": "xxx", "info_status": "confirmed", "source": "user_reply"}}`
+
 ### Evidence-Based Verb Grading
 
 Every verb claim must be backed by a matching level of evidence. **Never upgrade a verb beyond what the user's facts support.**

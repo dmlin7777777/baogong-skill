@@ -23,8 +23,8 @@
       "properties": {
         "version": {
           "type": "string",
-          "const": "1.1",
-          "description": "1.0 initial, 1.1 added nuance_buffer + conversation_history."
+          "const": "1.2",
+          "description": "1.0 initial, 1.1 nuance_buffer + conversation_history, 1.2 info_status marking + multi-JD support."
         },
         "session_id": {
           "type": "string",
@@ -41,8 +41,49 @@
             "audit_in_progress",
             "complete",
             "archived",
-            "rollback_requested"
+            "rollback_requested",
+            "a2_collecting",
+            "a2_shared_context",
+            "a2_per_jd",
+            "a2_comparison"
           ]
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["a", "a2", "b"],
+          "description": "Operating mode for this session."
+        },
+        "a2_context": {
+          "type": ["object", "null"],
+          "description": "Multi-JD batch context. Only present in Mode A2 sessions.",
+          "properties": {
+            "jd_labels": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Ordered JD labels: ['JD-A', 'JD-B', ...]"
+            },
+            "per_jd_sessions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "label": { "type": "string" },
+                  "session_id": { "type": "string" },
+                  "company": { "type": "string" },
+                  "role": { "type": "string" },
+                  "status": { "type": "string" }
+                }
+              }
+            },
+            "shared_decisions": {
+              "type": "object",
+              "description": "Quantifications and experience selections shared across JDs.",
+              "properties": {
+                "universal_experiences": { "type": "array", "items": { "type": "string" } },
+                "shared_quantifications": { "type": "object" }
+              }
+            }
+          }
         },
         "last_updated": {
           "type": "string",
@@ -225,6 +266,15 @@
                   "string",
                   "null"
                 ]
+              },
+              "info_status": {
+                "type": "string",
+                "enum": [
+                  "confirmed",
+                  "pending",
+                  "inferred"
+                ],
+                "description": "confirmed=[✓] user-verified, pending=[?] extracted but unverified, inferred=[~] model-derived."
               }
             }
           }
@@ -311,6 +361,15 @@
                     "type": "string"
                   }
                 }
+              },
+              "info_status": {
+                "type": "string",
+                "enum": [
+                  "confirmed",
+                  "pending",
+                  "inferred"
+                ],
+                "description": "confirmed=[✓] user-verified this experience selection, pending=[?] auto-selected but unconfirmed."
               }
             }
           }
@@ -331,7 +390,25 @@
         "confirmed_quantifications": {
           "type": "object",
           "additionalProperties": {
-            "type": "string"
+            "oneOf": [
+              { "type": "string" },
+              {
+                "type": "object",
+                "required": ["value", "info_status"],
+                "properties": {
+                  "value": { "type": "string" },
+                  "info_status": {
+                    "type": "string",
+                    "enum": ["confirmed", "pending", "inferred"],
+                    "description": "confirmed=[✓] user-verified, pending=[?] extracted but unverified, inferred=[~] model-derived."
+                  },
+                  "source": {
+                    "type": "string",
+                    "description": "Where this data came from: 'user_reply', 'resume_master', 'story_library', 'jd_a_session', 'model_inference'."
+                  }
+                }
+              }
+            ]
           }
         },
         "confirmed_wording_changes": {
