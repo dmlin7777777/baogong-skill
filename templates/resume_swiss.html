@@ -185,11 +185,12 @@ body {
   break-inside: avoid;
 }
 
-/* Row 1: Company / Role — Date (right) */
+/* Row 1: Company / Role — Date (right column, left-aligned) */
 .exp-header {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: baseline;
+  column-gap: 12px;
   font-weight: 600;
   font-size: var(--fs-body);
   margin-bottom: var(--sp-1);
@@ -205,13 +206,15 @@ body {
   color: var(--ink-soft);
   font-weight: 400;
   font-size: var(--fs-small);
+  text-align: left;
 }
 
-/* Row 2: Department / Location — optional */
+/* Row 2: Department / Location — optional (right column aligned) */
 .exp-sub {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: baseline;
+  column-gap: 12px;
   font-size: var(--fs-meta);
   color: var(--ink-muted);
   font-style: italic;
@@ -221,6 +224,7 @@ body {
 .exp-sub .exp-loc {
   white-space: nowrap;
   font-style: normal;
+  text-align: left;
 }
 
 /* Bullets */
@@ -261,9 +265,10 @@ body {
 }
 
 .edu-main {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: baseline;
+  column-gap: 12px;
 }
 
 .edu-main .edu-degree {
@@ -277,6 +282,7 @@ body {
   color: var(--ink-soft);
   font-size: var(--fs-small);
   font-weight: 400;
+  text-align: left;
 }
 
 .edu-school {
