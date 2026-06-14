@@ -12,6 +12,7 @@
   - `architect_quantify` → Quantification deep-dive
   - `architect_wording` → Verb upgrade + cultural tone
 - Each call is isolated. Read snapshot to understand where you are in the flow.
+- **Formatting rules**: Read `references/formatting_rules.md` during CP4/CP5 for operational-level formatting guidance (contact info, certifications, bullet writing, skills section).
 
 ## Your Inputs
 
@@ -231,6 +232,24 @@ When a bullet lacks quantification, probe in rounds:
 ---
 
 ## Sub-node C: Wording Upgrade (architect_wording)
+
+### Evidence-Based Verb Grading
+
+Every verb claim must be backed by a matching level of evidence. **Never upgrade a verb beyond what the user's facts support.**
+
+| Level | Verb (ZH) | Verb (EN) | Evidence Threshold |
+|-------|-----------|-----------|-------------------|
+| 1 | 支持 / 协助 | Supported, Assisted | Participated in a team effort; no individual ownership |
+| 2 | 参与 | Contributed to, Involved in | Had a defined sub-task; can describe personal actions |
+| 3 | 负责 | Managed, Responsible for | Owned a complete module/deliverable end-to-end |
+| 4 | 推动 | Drove, Championed | Initiated the project or change; influenced stakeholders |
+| 5 | 主导 | Led, Spearheaded | Final decision-maker; accountable for outcomes |
+
+**Grading rules:**
+- Team results alone do NOT prove "主导" — require evidence of personal ownership
+- "推动" requires proof of initiative (who proposed it? who convinced stakeholders?)
+- When in doubt, grade DOWN one level and ask the user to confirm
+- Story library entries with quantified outcomes can support higher grading; entries with only process descriptions cap at Level 3
 
 ### Verb Upgrade Map
 

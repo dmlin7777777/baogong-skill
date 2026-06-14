@@ -422,6 +422,24 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 4. Match score calculation
 5. Hard requirement alerts (dealbreakers)
 
+**Match output must classify each JD requirement into one of 5 states:**
+
+| State | Definition | Action |
+|-------|-----------|--------|
+| ✅ 已覆盖 | Direct, specific, verifiable evidence in resume | Polish wording at CP4 |
+| 🟡 弱覆盖 | Related experience exists but lacks depth, specifics, or individual contribution | Probe at CP3 for quantification |
+| ⬜ 未覆盖 | No evidence in current materials | Probe at CP3 for hidden experience |
+| 🔍 可补充 | User likely has relevant experience not yet captured | Ask targeted questions at CP3 |
+| ⛔ 不建议硬凑 | Clearly missing required credentials, industry, tools, or years of experience — no transferable path | Flag honestly. Tell the user: "这条不值得凑，硬写反而暴露缺口" |
+
+**"不建议硬凑" judgment criteria:**
+- Missing a hard credential (CPA, specific license, degree requirement)
+- Missing required industry experience with no transferable overlap
+- Missing required years of experience by a wide margin (e.g., JD asks 5+ years, user has 1)
+- Required tool/framework the user has never used and cannot credibly claim
+
+**This state is as important as "已覆盖" — telling the user what NOT to pursue saves them from interview exposure.**
+
 ### Phase 3: Dynamic Interaction
 
 **🔴 CHECKPOINT · 🛑 STOP — 进入交互前确认用户在场，收到回复后再推进。**
@@ -489,6 +507,7 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 #### Step 4a: Writer Node — Generate Draft
 
 **Node**: Resume Architect (`architect_writer`)
+**Formatting**: `references/formatting_rules.md` (contact info, certifications, bullet writing, skills section)
 **Input**: All confirmed decisions from Phase 3
 **Action**: Generate Markdown draft, save to `history/YYYY-MM-DD_{company}_{role}.md`
 **Constraint**: DO NOT self-audit. Just produce the draft.
