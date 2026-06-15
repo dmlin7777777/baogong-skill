@@ -13,12 +13,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **6-scenario routing matrix**: A (JD+resume), A2 (multi-JD+resume), B (resume only), C (JD only, advisory output), D (info insufficient, guided intake), E (fabrication blocking, hard refusal)
 - **Mode B audit rules (M1-M5)**: Story library cross-validation — bullet↔STAR mapping, semantic drift detection, evidence-based verb grading against story library
 - **Reverse audit checklist** (`references/reverse_audit_checklist.md`): B-2 persona review table, B-3 fabrication gate rules, audit output format template
+- **Phase 4f Interview Prep Pack**: Mandatory deliverable for every Mode A/A2 run. Compares final draft against `resume_master.md` to identify significant changes (new bullets, quantification additions, wording upgrades ≥2 levels), generates mock interview questions + STAR response notes per change, plus top 3-5 common questions from Phase 1 S1 interview intel. Saved to `history/{date}_{company}_{role}_interview_prep.md`
+- **Search degradation chain**: 4-tier fallback when WebFetch/WebSearch is blocked — L1 WebFetch → L2 agent-browser (headless JS rendering) → L3 Chrome MCP (real browser) → L4 search snippet fallback. Degradation status tracked in `_meta.search_degradation`
 
 ### Changed
 - **Snapshot schema v1.2**: Added `_meta.mode`, `_meta.a2_context`, `info_status` field on `hard_requirements` and `kept_experiences`, structured `confirmed_quantifications` with source tracking
 - **Mode detection priority**: Rewritten as E-first → D → A/A2/B/C decision tree (fabrication and insufficient-info checks before routing)
 - **Phase 1 Scout instruction**: Explicit note that `jd_parser.py` only extracts structured features (years/degree); Scout must supplement `ats_keywords`, `capability_clusters`, and soft requirements via LLM
 - **STATE_UPDATE template**: Added CP5 `writer_draft_path` example, `ats_keywords` in Scout delta, delivery format updated to html/md (removed docx/pdf)
+- **Delivery Gate**: Expanded from 5 steps to 6 steps (4a→4b→4c→4d→4e→4f). Skipping Interview Prep = incomplete delivery
+- **Error handling for JD URL fetch**: Now follows search degradation chain before asking user to paste text
 
 ### Fixed
 - **engine.py `self._save()` typo**: Method is `save()` — crashed all Snapshot.initialize() calls

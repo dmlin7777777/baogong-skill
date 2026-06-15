@@ -608,6 +608,22 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 - **每轮搜索结果必须至少影响一项下游产出**（见"产出落地点"列），否则标记为无效搜索（违反 A6）
 - 搜索结果中提取的关键信息标注 `来源：[搜索关键词]`，存入 `scout_report` 和 `interview_intel`
 
+**搜索降级链（当 WebFetch/WebSearch 被拦截时）**：
+
+| 降级层 | 工具 | 适用场景 |
+|--------|------|---------|
+| **L1（默认）** | WebSearch + WebFetch | 静态页面、大部分搜索引擎结果 |
+| **L2（JS 渲染）** | agent-browser（`agent-browser open <url>` → `agent-browser snapshot`） | JS 动态加载、被 bot 检测拦截的页面 |
+| **L3（真实浏览器）** | Claude in Chrome MCP（如 session 中可用） | 强反爬站、需要登录的站点 |
+| **L4（降级兜底）** | 搜索摘要片段 | 所有抓取手段失败时，仅用搜索引擎返回的标题+摘要 |
+
+**降级执行规则**：
+- WebFetch 返回空/403/超时 → 用 agent-browser 重试同一 URL
+- agent-browser 也失败 → 有 Chrome MCP 则用真实浏览器，无则跳到 L4
+- L4 兜底：使用搜索引擎返回的摘要片段作为情报，在 `scout_report` 中标注 `来源：搜索摘要（原文抓取失败）`
+- **不因为抓取失败就跳过整个搜索轮次**——摘要通常足够提取面经关键信息
+- 降级状态写入 snapshot `_meta.search_degradation`，Auditor 可据此评估情报可靠性
+
 4. Execute unified context extraction (script + LLM in one pass). Note: `jd_parser.py` only extracts structured features (years, degree). Scout must extract skill keywords, soft requirements, and `ats_keywords` via LLM and write them into `jd_facts` via STATE_UPDATE.
 5. Detect role level, region, document type
 6. Output consolidated context table + `interview_intel` 卡片（面经摘要 + 面试重点提示 + 文化关键词）+ risk warnings
@@ -742,7 +758,7 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 5. Render HTML: 将 MD 内容按节段映射到 `templates/resume_swiss.html` 模板变量 → 写入 `history/{date}_{company}_{role}.html`
 6. Archive snapshot from `sessions/` to `history/`
 
-> 🛑 **DELIVERY GATE**：Phase 4a Writer → Phase 4b Compliance → Phase 4c Reverse Audit（含 B-3 编造阻断门） → Phase 4d Compile → Phase 4e Historical Audit，**五步缺一不可**。跳过 Auditor = 未完成交付。编造阻断门任一 🔴 → 整份草稿 ROLLBACK。
+> 🛑 **DELIVERY GATE**：Phase 4a Writer → Phase 4b Compliance → Phase 4c Reverse Audit（含 B-3 编造阻断门） → Phase 4d Compile → Phase 4e Historical Audit → Phase 4f Interview Prep，**六步缺一不可**。跳过 Auditor = 未完成交付。编造阻断门任一 🔴 → 整份草稿 ROLLBACK。跳过 4f = 交付不完整。
 
 #### HTML 模板变量映射
 
@@ -790,6 +806,58 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 
 3. 输出审计报告：`{date}_{role}_version_audit.md`，列出所有差异及处理建议
 4. 🔴 STOP — 展示差异给用户确认后再交付
+
+#### Step 4f: Interview Prep Pack（面试准备包）
+
+**这是标准交付物，不是可选项。** 每次 Mode A/A2 交付都必须包含面试准备包。
+
+**Node**: Sincerity Auditor（复用 Phase 4c 的面试官人设）
+**Input**: 
+- Final draft（4e 审计通过后的版本）
+- Phase 1 `interview_intel`（S1 面经情报）
+- `resume_master.md`（原始简历，用于识别"显著变化"）
+
+**步骤**：
+
+1. **识别显著变化**：对比 `resume_master.md` 和最终简历，提取所有：
+   - 新增的 bullet（CP2 缺口填补产生的新内容）
+   - 量化数据发生变化的 bullet（CP3 追问后补充了数字）
+   - 措辞显著升级的 bullet（CP4 动词等级提升 ≥2 级）
+
+2. **为每个显著变化生成面试 QA**：
+
+   ```markdown
+   ### [经历名称] — [变化类型：新增/量化补充/措辞升级]
+
+   **简历写法**：[最终简历中的 bullet]
+   **与原始简历的差异**：[改了什么]
+
+   **面试官可能追问**：
+   1. [问题 1]（来源：Phase 1 面经 / 通用追问模式）
+   2. [问题 2]
+
+   **STAR 应答要点**：
+   - S（背景）：[情境]
+   - T（任务）：[目标]
+   - A（行动）：[你的具体行动]
+   - R（结果）：[量化结果 + 数据来源]
+
+   **⚠️ 面试注意**：[需要特别留意的点，如数字来源、角色边界、避免过度包装]
+   ```
+
+3. **通用高频问题**（基于 S1 面经）：
+   - 从 Phase 1 S1 面经中提取出现频率最高的 3-5 个追问方向
+   - 每个方向给出 1 个典型问题 + 应答建议
+   - 如 S1 面经抓取失败（降级到 L4），则基于岗位类型生成通用问题，标注「来源：通用模板（面经抓取失败）」
+
+4. **展示 + 保存**：
+   - 🔴 STOP — 面试准备包展示给用户，作为交付物的一部分
+   - 保存到 `history/{date}_{company}_{role}_interview_prep.md`
+
+**与 Phase 4c 的关系**：
+- 4c 是审计：找问题、判断是否 ROLLBACK，mock 问题仅针对 🔴 MAJOR 风险点
+- 4f 是面试准备：覆盖所有显著变化，帮用户准备回答
+- 4c 的 mock 问题是防御性的（"这个 bullet 可能被追穿"），4f 的 mock 问题是建设性的（"面试官会问什么，怎么答"）
 
 ## Rendering Pipeline
 
@@ -850,6 +918,7 @@ Phase 4a Writer → {date}_{company}_{role}.md （Markdown 草稿，始终产出
     ├── {date}_{company}_{role}_audit.md        # Audit log
     ├── {date}_{company}_{role}_snapshot.json   # Archived state
     ├── {date}_{company}_{role}_interview_intel.md  # Phase 1 面经情报
+    ├── {date}_{company}_{role}_interview_prep.md  # Phase 4f 面试准备包
     └── ...
 ```
 
@@ -867,7 +936,7 @@ Phase 4a Writer → {date}_{company}_{role}.md （Markdown 草稿，始终产出
 | 8 | **用"建议/可以考虑/根据情况"等软化措辞替代明确的 STOP 标记** | LLM 不识别弱措辞，会继续执行 | 必须用 `🔴 STOP` 或 `🛑 CHECKPOINT` 显性标记 |
 | 9 | **生成新版本不与历史版本对比** | 量化数据可能在迭代中丢失（如具体数字退化为模糊描述） | 每次交付前执行 [[#Step 4e Historical Version Audit]]，量化倒退 → 回退到旧版数字 |
 | 10 | **用课程/学校标签弱化项目** | "NUS 商业分析项目（BAP）"让人以为是课程 toy，面试官直接打折 | 副标题只写角色身份（"独立开发"/"个人项目"），不写课程编号；地点写城市/国家，不写学校 |
-| 11 | **跳过 Phase 4 反向审计直接交付** | 没有独立 Auditor 的简历 = 没有诚意检查，面试时会被追问打穿 | Phase 4 必须 Writer → Auditor 两个独立调用；Auditor 未跑完不能交付 |
+| 11 | **跳过 Phase 4 反向审计或面试准备直接交付** | 没有独立 Auditor 的简历 = 没有诚意检查；没有面试准备 = 用户拿到简历却答不出面试问题 | Phase 4 必须 4a→4b→4c→4d→4e→4f 六步完成；Auditor 未跑完或 Interview Prep 未生成 = 未完成交付 |
 | 12 | **模型推断内容未经确认进入最终稿** | `info_status: inferred` 的声明直接出现在交付物中 | 用户面试被问到推断内容无法回答 | 所有 `[~]` 推断必须在 CP 中转为 `[✓]` 已确认或被删除，见 [[#Information Status Marking]] |
 | 13 | **跨 JD 简历数字不一致** | Mode A2 中同一经历的量化数字在不同 JD 版本中出现差异 | 面试官交叉核对不同投递版本 = 直接淘汰 | Auditor B-3 规则 #8：同一经历数字必须一致，措辞可以不同 |
 
@@ -891,7 +960,7 @@ Phase 4a Writer → {date}_{company}_{role}.md （Markdown 草稿，始终产出
 |-------|---------------|-----------------|
 | No resume file | `Glob **/resume_master.md`；找到则直接用，未找到则输出「请提供简历文件路径（.docx/.pdf/.md）」 | 检查 `.workbuddy/memory/MEMORY.md` 中 `resume_path` 字段；仍无 → 停止执行，不猜测 |
 | No JD provided | 输出「未检测到 JD，切换到 Mode B（通用方向简历），请确认目标岗位方向」，等用户回复后再推进 | 若用户确认要 JD 模式 → 输出「请直接粘贴 JD 文本」，不尝试自行推断 |
-| JD URL fetch fails | 输出「链接无法访问，请直接粘贴 JD 文本」 | 用 `WebFetch` 附加 `User-Agent: Mozilla/5.0 Mobile` 重试一次；仍失败 → 停止，不继续 |
+| JD URL fetch fails | 按搜索降级链执行：WebFetch 重试 → agent-browser → Chrome MCP → 输出「链接无法访问，请直接粘贴 JD 文本」 | 所有降级手段失败 → 停止，请用户粘贴文本 |
 | Story library missing data for a claim | 输出「故事库中缺少[XXX]的数据，请确认或提供」——列出缺失字段，等待回复 | 用户无法确认 → 完整删除该 bullet，不写任何推断性描述 |
 | snapshot.json 损坏或缺失 | 备份损坏文件为 `snapshot.json.bak.YYYYMMDD-HHMM`，重建空 snapshot（只保留 `_meta` 层），从 Phase 1 重新开始 | 无法写文件 → 停止，输出「状态文件异常，请手动删除 sessions/ 目录后重试」 |
 | STATE_UPDATE JSON parse fail | 在同一上下文注入自纠正 prompt「请只输出合法 JSON，格式：{...}」，重试一次 | 第二次失败 → 从原始输出手动提取关键字段（`status`、`decisions`），跳过 JSON 解析，在 snapshot 中标注 `parse_error: true` |

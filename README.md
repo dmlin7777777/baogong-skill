@@ -45,10 +45,11 @@ Every modification is tracked:
 - Hard gaps flagged (missing certifications, experience thresholds)
 - Compliance warnings (photo/age removal by region)
 
-### 🎙️ Interview Prep Pack
-For every significant change on your resume, the system generates:
-- **Mock Questions** — what interviewers will likely challenge you on
+### 🎙️ Interview Prep Pack (v3.4)
+A mandatory deliverable — not optional. For every significant change on your resume (new bullets, quantification additions, wording upgrades), the system generates:
+- **Mock Questions** — sourced from real interview experiences (Phase 1 S1 search), not generic templates
 - **STAR Notes** — structured talking points so you can defend each bullet confidently
+- **Common Questions** — top 3-5 high-frequency interview questions for the target role/company
 
 ---
 
@@ -178,10 +179,11 @@ The system auto-detects your scenario and routes to the appropriate pipeline:
 
 | Phase | Node | What Happens | Your Role |
 |-------|------|-------------|-----------|
-| **1. Context** | **Scout** | JD requirement extraction, company research, interview intel search | Review & confirm |
+| **1. Context** | **Scout** | JD requirement extraction, company research, interview intel search (with 4-tier fallback) | Review & confirm |
 | **2. Match** | **Architect** | Direct + implicit matching with confidence levels | Review match table |
 | **3. Adjust** | **Architect** | Experience selection, gap filling, quantification, wording upgrade | Confirm or override each suggestion |
 | **4. Audit** | **Auditor** | Compliance check + fabrication gate + reviewer persona challenge | Final review |
+| **5. Interview Prep** | **Auditor** | Mock questions + STAR notes for every significant resume change | Review prep pack |
 
 Every suggestion comes with a **concrete recommendation** — you confirm or override, never decide from scratch.
 
