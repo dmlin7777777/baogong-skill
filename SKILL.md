@@ -715,6 +715,11 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 
 **🔴 如果对某条措辞升级是否越界存疑 → 输出 before/after 并标注「不确定是否有依据」，让用户确认后再写入。**
 
+**🔴 推断项逐项确认规则**：CP4 中任何涉及 `[~]` 模型推断的内容（如 LLM 推断的部门名称、推断的技能水平、推断的业务规模），不能被用户的笼统回复（如"确认都可以""没问题"）通过。必须：
+1. 在 CP4 输出中，推断项单独标注 `⚠️ [推断]` 前缀，与普通措辞升级视觉区分
+2. 明确要求用户逐项确认推断内容的准确性（如"以下 2 条包含我推断的信息，请逐条确认"）
+3. 用户确认后，推断项的 `info_status` 从 `inferred` 变为 `confirmed`；用户否认则删除该内容
+
 **Global Interaction Principle**: Every question must include a concrete recommendation. User confirms or overrides — never decides from scratch.
 
 ### Phase 4: Delivery & Audit (Physical Isolation)

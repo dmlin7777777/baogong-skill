@@ -1,5 +1,5 @@
 """
-Resume Tailor — Renderer (v3.3)
+Resume Tailor — Renderer (v3.4)
 
 Zero-dependency rendering pipeline.
 Replaces the old Jinja2/markdown-it/WeasyPrint/pypandoc stack.
@@ -518,37 +518,107 @@ def render(snapshot_path: str, output_dir: str = None) -> RenderResult:
 
 
 # ════════════════════════════════════════════════════════
-# CLI INTERFACE (for standalone testing)
+# DIRECT MARKDOWN RENDERING (no snapshot needed)
 # ════════════════════════════════════════════════════════
 
-def main():
-    """CLI entry point: python renderer.py <snapshot.json> [output_dir]"""
-    import argparse
+def render_md(md_path: str, output_dir: str = None) -> RenderResult:
+    """
+    Render a Markdown draft directly to HTML without a snapshot.
 
-    parser = argparse.ArgumentParser(description="Resume Tailor Renderer v3.3")
-    parser.add_argument("snapshot", help="Path to context_snapshot.json")
-    parser.add_argument("output_dir", nargs="?", default=None, help="Output directory")
-    args = parser.parse_args()
+    Args:
+        md_path: Absolute path to a Markdown resume draft.
+        output_dir: Directory for outputs (defaults to same dir as md_path).
 
-    print(f"[Renderer v3.3] Processing: {args.snapshot}")
-    result = render(args.snapshot, args.output_dir)
+    Returns:
+        RenderResult with html_path and status.
+    """
+    result = RenderResult()
+    md_file = Path(md_path)
 
+    if not md_file.exists():
+        result.errors.append(f"Markdown file not found: {md_path}")
+        return result
+
+    md_text = md_file.read_text(encoding="utf-8")
+
+    if output_dir is None:
+        output_dir = str(md_file.parent)
+    out = Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+
+    result.md_path = str(md_file)
+
+    try:
+        template = _load_template()
+    except FileNotFoundError as e:
+        result.warnings.append(f"Template missing: {e}. Delivering Markdown only.")
+        result.success = True
+        return result
+
+    try:
+        parsed = _parse_markdown(md_text)
+        html_output = _fill_template(parsed, template)
+
+        html_out = out / (md_file.stem + ".html")
+        html_out.write_text(html_output, encoding="utf-8")
+        result.html_path = str(html_out)
+        result.success = True
+    except Exception as e:
+        result.errors.append(f"Rendering failed: {e}")
+        result.warnings.append("Fallback: Markdown draft is available for manual formatting.")
+
+    return result
+
+
+# ════════════════════════════════════════════════════════
+# CLI INTERFACE
+# ════════════════════════════════════════════════════════
+
+def _print_result(result: RenderResult):
+    """Pretty-print a RenderResult."""
     print(f"\n{'='*50}")
     print(f"Status: {'SUCCESS' if result.success else 'FAILED'}")
     print(f"\nOutputs:")
     print(f"  Markdown: {result.md_path or 'N/A'}")
     print(f"  HTML:     {result.html_path or 'N/A'}")
-
     if result.warnings:
         print(f"\nWarnings ({len(result.warnings)}):")
         for w in result.warnings:
             print(f"  ⚠️  {w}")
-
     if result.errors:
         print(f"\nErrors ({len(result.errors)}):")
         for e in result.errors:
             print(f"  ❌ {e}")
 
+
+def main():
+    """
+    CLI entry points:
+      renderer.py <snapshot.json> [output_dir]        # snapshot mode (backward compat)
+      renderer.py --md <draft.md> [--output output/]   # direct MD mode
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Resume Tailor Renderer v3.4")
+    parser.add_argument("source", nargs="?", help="Path to snapshot.json (positional, backward compat)")
+    parser.add_argument("output_dir_pos", nargs="?", default=None, help=argparse.SUPPRESS)
+    parser.add_argument("--md", dest="md_path", help="Path to Markdown draft (direct rendering, no snapshot)")
+    parser.add_argument("--output", "-o", default=None, help="Output directory")
+    args = parser.parse_args()
+
+    output_dir = args.output or args.output_dir_pos
+
+    if args.md_path:
+        print(f"[Renderer v3.4] Direct MD: {args.md_path}")
+        result = render_md(args.md_path, output_dir)
+    elif args.source:
+        print(f"[Renderer v3.4] Snapshot: {args.source}")
+        result = render(args.source, output_dir)
+    else:
+        parser.error("Provide either a snapshot.json path or --md <draft.md>")
+        return 1
+
+    _print_result(result)
     return 0 if result.success else 1
 
 
