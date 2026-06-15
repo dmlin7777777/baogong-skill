@@ -1,6 +1,6 @@
 ---
 name: resume-tailor
-description: "针对岗位 JD 定制简历，或生成通用方向简历。分析 JD 关键词、匹配源简历、交互式调整建议、反向诚意审计。HTML（瑞士国际主义风）+ Markdown 双主交付，支持面经联网搜索。触发词：调简历、tailor resume、优化简历、生成简历、通用简历、简历定制、resume for this JD"
+description: "求职教练，不是润色器。针对 JD 交互式定制简历，编造阻断门确保每条经历经得起面试追问。HTML + Markdown 双交付。"
 version: "3.4"
 required_permissions:
   - Read    # 读取源简历、故事库、JD 文本
@@ -738,13 +738,18 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 **🔴 Bullet 格式硬规则**：工作经历和项目经历中的每一条 bullet **必须**使用 `**前缀**: 详细内容` 格式。前缀 2-4 个词，命中 JD 关键词，不含形容词。
 
 ```markdown
-✅ 正确：
+✅ 正确（中文）：
 - **数据监控体系**：搭建外卖业务核心指标看板（Tableau），覆盖30+指标
 - **AB 测试优化**：主导3次 A/B 测试设计与分析，推动订单转化率提升8%
+
+✅ 正确（英文）：
+- **KPI Monitoring:** Built a real-time capital operations monitoring system, consolidating 15 SQL scripts into a unified dashboard covering 10+ metrics
+- **Process Automation:** Automated reconciliation between computed Net Position and system-native Net Unbilled WIP — reduced monthly close from 48h to 12h (↓75%)
 
 ❌ 错误：
 - 搭建了外卖业务核心指标看板（Tableau），覆盖30+指标     ← 缺 **前缀**:
 - **高效搭建数据看板**：...                                ← 前缀含形容词"高效"
+- Architected a FIFO-based rolling aging model in Power BI... ← 英文 bullets 也需要 **Prefix**: 格式
 ```
 
 无 `**前缀**:` 的 bullet = Auditor 4c 自动标记 🟡 MINOR 格式违规。
