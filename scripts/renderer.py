@@ -1,5 +1,5 @@
 """
-Resume Tailor — Renderer (v3.4)
+包公.skill — Renderer (v3.4)
 
 Zero-dependency rendering pipeline.
 Replaces the old Jinja2/markdown-it/WeasyPrint/pypandoc stack.
@@ -628,7 +628,7 @@ def main():
     """
     import argparse
 
-    parser = argparse.ArgumentParser(description="Resume Tailor Renderer v3.4")
+    parser = argparse.ArgumentParser(description="包公.skill Renderer v3.4")
     parser.add_argument("source", nargs="?", help="Path to snapshot.json (positional, backward compat)")
     parser.add_argument("output_dir_pos", nargs="?", default=None, help=argparse.SUPPRESS)
     parser.add_argument("--md", dest="md_path", help="Path to Markdown draft (direct rendering, no snapshot)")

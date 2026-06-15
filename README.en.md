@@ -1,8 +1,8 @@
 <div align="center">
 
-# Resume Tailor
+# 包公.skill
 
-**AI-Powered Resume Tailoring — Not a Polisher, a Coach**
+**AI-Powered 包公.skilling — Not a Polisher, a Coach**
 
 *This project follows a "Coach, not Polisher" philosophy.*
 
@@ -18,7 +18,7 @@
 
 Most AI resume tools **rewrite** your bullets to sound fancy. This one **coaches** you to make them real.
 
-| Traditional AI Rewrite | Resume Tailor |
+| Traditional AI Rewrite | 包公.skill |
 |---|---|
 | ❌ "Significantly improved data analysis efficiency, received team recognition" | ✅ "Built automated reconciliation tool, reducing monthly close cycle from **5 days to 6 hours** across **12 business lines**" |
 | Fills vague adjectives when data is missing | Asks targeted questions — or keeps original wording if you can't quantify |
@@ -85,7 +85,7 @@ IELTS 7.5 ≈ CET-6 550+. The system maps credentials across regions and keeps t
 
 ## Architecture: LLM-as-Orchestrator + Blackboard State
 
-Resume Tailor v3.4 runs as an **LLM-as-orchestrator** skill. The LLM reads `SKILL.md`, advances through phases, and calls `scripts/` tools as needed. No Python process drives the LLM — the LLM drives the Python tools.
+包公.skill v3.4 runs as an **LLM-as-orchestrator** skill. The LLM reads `SKILL.md`, advances through phases, and calls `scripts/` tools as needed. No Python process drives the LLM — the LLM drives the Python tools.
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -206,7 +206,7 @@ That's it. The skill handles research, matching, adjustment, audit, and renderin
 <summary>📁 File Structure</summary>
 
 ```
-resume-tailor/
+baogong-skill/
 ├── SKILL.md                              # Skill definition & workflow routing table
 ├── README.md                             # Chinese documentation (homepage)
 ├── README.en.md                          # This file

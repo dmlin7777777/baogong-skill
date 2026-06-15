@@ -1,5 +1,5 @@
 """
-Resume Tailor — Shared Utilities (v2)
+包公.skill — Shared Utilities (v2)
 
 Common functions and patterns used across jd_parser.py, ats_checker.py, and diff_audit.py.
 Keeps the codebase DRY without over-abstracting.

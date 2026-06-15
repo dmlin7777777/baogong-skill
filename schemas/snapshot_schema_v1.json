@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "snapshot-schema-v1.json",
-  "title": "Resume Tailor v3 Context Snapshot",
+  "title": "包公.skill v3 Context Snapshot",
   "description": "State protocol for pseudo multi-agent blackboard architecture. Four-layer: Facts(read-only) / Decisions(persistent+nuance) / Outputs(volatile).",
   "type": "object",
   "required": [

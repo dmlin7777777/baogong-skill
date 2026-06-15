@@ -1,5 +1,5 @@
 """
-Resume Tailor — Pipeline Engine (v3.3)
+包公.skill — Pipeline Engine (v3.3)
 
 Pseudo Multi-Agent Blackboard Architecture — state management layer.
 

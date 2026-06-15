@@ -1,4 +1,4 @@
-# Resume Tailor v3.3 — Python Dependencies
+# 包公.skill v3.3 — Python Dependencies
 
 # --- v3.3 Rendering Pipeline (zero-dependency) ---
 #   Template-based: Markdown draft → parser → {{PLACEHOLDER}} substitution → HTML

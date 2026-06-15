@@ -1,5 +1,5 @@
 ---
-name: resume-tailor
+name: baogong
 description: "求职教练，不是润色器。针对 JD 交互式定制简历，编造阻断门确保每条经历经得起面试追问。HTML + Markdown 双交付。"
 version: "3.4"
 required_permissions:
@@ -10,7 +10,7 @@ required_permissions:
   - WebSearch # 市场调研 + 面经搜索
 ---
 
-# Resume Tailor v3
+# 包公.skill v3
 
 **Pseudo Multi-Agent + Blackboard Architecture**
 
@@ -345,7 +345,7 @@ Step C3: 路由决策
 
 ## Operating Modes
 
-Resume Tailor has six scenarios, determined by input conditions:
+包公 has six scenarios, determined by input conditions:
 
 | Scenario | 输入条件 | 产出 |
 |----------|---------|------|
@@ -968,7 +968,7 @@ Phase 4a Writer → {date}_{company}_{role}.md （Markdown 草稿，始终产出
 
 ## Agent Execution Anti-Patterns（NEVER — Agent 自主执行时）
 
-> 以下反模式来自 Agent 在无监督状态下运行 resume-tailor 时最容易犯的错误，与上方「用户约定层 Anti-Patterns」不同——这些是 **LLM/Agent 主动犯的执行错误**，不是用户约定。
+> 以下反模式来自 Agent 在无监督状态下运行 包公.skill 时最容易犯的错误，与上方「用户约定层 Anti-Patterns」不同——这些是 **LLM/Agent 主动犯的执行错误**，不是用户约定。
 
 | # | 反模式 | 触发场景 | 为什么不能做 | 正确做法 |
 |---|---|---|---|---|

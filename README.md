@@ -1,6 +1,6 @@
 <div align="center">
 
-# Resume Tailor
+# 包公.skill
 
 > _「面试官追问"这个 30% 怎么算的"——你答得上来，才叫简历。」_
 
@@ -25,7 +25,7 @@
 
 <img src="assets/before-after.png" alt="Before: 空泛描述 → After: 量化经历 + 瑞士国际主义排版" width="100%">
 
-▲ 左：典型 AI 润色输出（空泛形容词）　→　右：Resume Tailor 交付（量化 + 瑞士风排版）
+▲ 左：典型 AI 润色输出（空泛形容词）　→　右：包公.skill 交付（量化 + 瑞士风排版）
 
 </div>
 
@@ -81,7 +81,7 @@ Audit ❯ 编造阻断门 10/10 通过。
 ## 安装
 
 ```bash
-npx skills add dmlin7777777/Resume-Tailor
+npx skills add dmlin7777777/baogong-skill
 ```
 
 <details>
@@ -89,7 +89,7 @@ npx skills add dmlin7777777/Resume-Tailor
 
 **手动安装（Claude Code）：**
 ```bash
-git clone https://github.com/dmlin7777777/Resume-Tailor.git ~/.claude/skills/resume-tailor
+git clone https://github.com/dmlin7777777/baogong-skill.git ~/.claude/skills/baogong-skill
 ```
 
 **Cursor / Codex / 其他 runtime：**
@@ -150,7 +150,7 @@ git clone https://github.com/dmlin7777777/Resume-Tailor.git ~/.claude/skills/res
 
 ## 凭什么不同
 
-|  | Resume Tailor | 通用 AI 问答 | SaaS (Jobscan 等) |
+|  | 包公.skill | 通用 AI 问答 | SaaS (Jobscan 等) |
 |---|---|---|---|
 | **编造阻断** | 10 条硬规则 + ROLLBACK | 无 | 无 |
 | **信息溯源** | `[✓]` / `[?]` / `[~]` 三级标记 | 无 | 无 |
@@ -235,7 +235,7 @@ git clone https://github.com/dmlin7777777/Resume-Tailor.git ~/.claude/skills/res
 ### 文件结构
 
 ```
-resume-tailor/
+baogong-skill/
 ├── SKILL.md                    # Skill 定义与工作流路由表
 ├── README.md                   # 本文件（中文首页）
 ├── README.en.md                # English documentation
