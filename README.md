@@ -2,18 +2,20 @@
 
 # 包公.skill
 
-> _「每一条经历，都要过堂。过不了的，打回重写。」_
+> _「卷宗未到，不开堂。陈词未清，不结案。能扛住追问的，才上终稿。」_
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Agent Skills](https://img.shields.io/badge/Agent%20Skills-Standard-green)](https://agentskills.io)
 [![skills.sh](https://img.shields.io/badge/skills.sh-Compatible-blue)](https://skills.sh)
 [![Multi-Runtime](https://img.shields.io/badge/Runtime-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Gemini%20CLI%20%C2%B7%20Cursor-blueviolet)](#安装)
 
-**别的工具帮你润色。包公帮你过堂——能扛住追问的，才上终稿。**
+**别的工具给你润色。包公开堂——**
+**从卷宗调阅到应对回话，一条龙审完，才上终稿。**
 
-铁面审计型求职教练。针对 JD 交互式定制简历，编造一条打回一条。HTML + Markdown 双交付。
+JD 驱动的简历定制教练：调卷宗 → 当堂陈词 → 案卷归档 → 应对回话。
+编造一条打回一条。HTML + Markdown 双交付，每版可进 Git 审计。
 
-[看效果](#效果示例) · [安装](#安装) · [交付什么](#交付物) · [铡刀门](#铡刀门编造阻断) · [工作原理](#工作原理)
+[看效果](#效果示例) · [四幕审什么](#四幕审什么) · [安装](#安装) · [交付物](#交付物) · [铡刀门](#铡刀门编造阻断) · [工作原理](#工作原理)
 
 **其他语言：** [English](README.en.md) · 简体中文
 
@@ -23,9 +25,24 @@
 
 <div align="center">
 
+## 四幕审什么
+
+| 幕 | 你的经历在包公这儿过哪一关 | 你最终拿到 |
+|---|---|---|
+| **调卷宗** | 联网搜面经 + 查公司 + 抓岗位隐性要求（4 级降级链） | `interview_intel` 情报卡：高频考点、面试官风格、隐性要求 |
+| **当堂陈词** | 2 轮量化追问（最多），说不出保留原文 | 每条带 `**前缀**` 的 STAR bullet，前缀命中 JD 关键词 |
+| **案卷归档** | 与最近 3 份历史版本对比，量化不倒退 | `history/` 一份 snapshot + Markdown + 瑞士风 HTML |
+| **应对回话** | 基于面经的 mock 问题 + STAR 笔记 | `{date}_{company}_{role}_interview_prep.md` |
+
+</div>
+
+---
+
+<div align="center">
+
 <img src="assets/before-after.png" alt="Before: 空泛描述 → After: 量化经历 + 瑞士国际主义排版" width="100%">
 
-▲ 左：典型 AI 润色（空泛形容词堆砌）　→　右：过堂后终稿（量化到人、事、数 + 瑞士风排版）
+▲ 左：典型 AI 润色（空泛形容词堆砌）　→　右：包公四幕审完后终稿（量化到人、事、数 + 瑞士风排版）
 
 </div>
 
@@ -222,9 +239,9 @@ git clone https://github.com/dmlin7777777/baogong-skill.git ~/.claude/skills/bao
 
 | 阶段 | 节点 | 做什么 | 你的角色 |
 |---|---|---|---|
-| 升堂 | **Scout** | JD 解析 + 公司调研 + 面经搜索（4 级降级链） | 审阅确认 |
-| 过堂 | **Architect** | 匹配 + 量化追问（最多 2 轮，说不出就保留原文） | 确认或否决 |
-| 断案 | **Auditor** | 铡刀门 10 条铁律 + 面试官挑战 + 合规检查 | 最终审阅 |
+| 升堂 | **Scout** | 调卷宗：JD 解析 + 公司调研 + 面经搜索（4 级降级链） | 审阅确认 |
+| 过堂 | **Architect** | 当堂陈词：经验匹配 + 量化追问（最多 2 轮，说不出就保留原文） | 确认或否决 |
+| 断案 | **Auditor** | 铡刀门：10 条铁律 + 案卷对比（vs 最近 3 份历史版本）+ 面试官挑战 | 最终审阅 |
 | 定稿 | **Renderer** | MD → 瑞士国际主义风 HTML，零依赖 | 接收交付 |
 
 ---

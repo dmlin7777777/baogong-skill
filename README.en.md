@@ -2,9 +2,9 @@
 
 # 包公.skill
 
-**AI-Powered 包公.skilling — Not a Polisher, a Coach**
+**Not a Polisher, a Judge — Resume Coaching Under Cross-Examination**
 
-*This project follows a "Coach, not Polisher" philosophy.*
+*This project follows a "Judge, not Polisher" philosophy. The 4-act process — Pull Files → Take the Stand → File the Case → Prepare Your Defense — runs every claim through the gauntlet before delivery.*
 
 [English](README.en.md) · [简体中文](README.md)
 
@@ -50,6 +50,17 @@ A mandatory deliverable — not optional. For every significant change on your r
 - **Mock Questions** — sourced from real interview experiences (Phase 1 S1 search), not generic templates
 - **STAR Notes** — structured talking points so you can defend each bullet confidently
 - **Common Questions** — top 3-5 high-frequency interview questions for the target role/company
+
+---
+
+## The 4-Act Process
+
+| Act | What Judge Bao Does | The Engine | You Get |
+|---|---|---|---|
+| **1. Pull the Files** | Search real interview experiences + company intel + hidden job requirements (4-tier fallback) | Phase 1 Scout: 3-tier S1 web search | `interview_intel` card: high-frequency questions, interviewer style, implicit requirements |
+| **2. Take the Stand** | 2 rounds of progressive quantification probes (or keep original wording if you can't quantify) | Phase 3 Architect: `**Prefix**` matching JD keywords + STAR bullets | Quantified bullets, every prefix aligned to JD |
+| **3. File the Case** | Compare against the 3 most recent historical versions; no quantified regression allowed | Step 4e Historical Version Audit | `history/` snapshot + Markdown + Swiss-style HTML |
+| **4. Prepare Your Defense** | Mock questions sourced from real interview experiences + STAR notes | Step 4f Interview Prep Pack | `{date}_{company}_{role}_interview_prep.md` |
 
 ---
 
