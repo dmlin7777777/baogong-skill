@@ -21,6 +21,16 @@
 
 ---
 
+<div align="center">
+
+<img src="assets/before-after.png" alt="Before: 空泛描述 → After: 量化经历 + 瑞士国际主义排版" width="100%">
+
+▲ 左：典型 AI 润色输出（空泛形容词）　→　右：Resume Tailor 交付（量化 + 瑞士风排版）
+
+</div>
+
+---
+
 ## 效果示例
 
 ```
@@ -109,6 +119,14 @@ git clone https://github.com/dmlin7777777/Resume-Tailor.git ~/.claude/skills/res
 | **面试准备包** | Markdown | 基于真实面经的 mock 问题 + STAR 笔记 |
 
 **Bullet 格式硬规则**：每条经历强制 `**前缀**: 详细内容`——前缀命中 JD 关键词，面试官一眼看到匹配。
+
+<div align="center">
+
+<img src="assets/showcase-swiss.png" alt="瑞士国际主义风简历渲染效果" width="700">
+
+▲ 渲染产物实拍：瑞士国际主义风 HTML，单文件零依赖，浏览器 Ctrl+P 即 PDF
+
+</div>
 
 ---
 

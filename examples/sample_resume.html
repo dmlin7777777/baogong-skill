@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>张明远 | Resume</title>
+<!--
+  Resume Tailor v3.3 — Swiss International Style
+  Inspired by guizang-ppt-skill Swiss template.
+  Design principles:
+    - Information-first, zero decoration
+    - Typographic hierarchy: weight inversely proportional to size
+    - Grid-based, hairline separators
+    - Single-file, no JS, print-optimized for A4
+  Fonts: Inter (Latin) + Noto Sans SC (CJK)
+  All sizes in pt for print fidelity.
+-->
+<style>
+/* ═══════════════════════════════════════
+   DESIGN TOKENS
+   ═══════════════════════════════════════ */
+:root {
+  /* Ink scale — primary text */
+  --ink: #1a1a1a;
+  --ink-strong: #0d0d0d;
+  --ink-soft: #4a4a4a;
+  --ink-muted: #737373;
+  /* Line */
+  --rule: #d4d4d4;
+  --rule-light: #e8e8e8;
+  /* Paper */
+  --paper: #ffffff;
+  /* Accent — single color, used sparingly */
+  --accent: #1a56db;
+
+  /* Typography scale (pt) */
+  --fs-name: 22pt;
+  --fs-title: 10pt;
+  --fs-body: 9.5pt;
+  --fs-small: 8.5pt;
+  --fs-meta: 8pt;
+
+  /* Line heights */
+  --lh-body: 1.45;
+  --lh-tight: 1.3;
+
+  /* Spacing scale */
+  --sp-1: 2pt;
+  --sp-2: 4pt;
+  --sp-3: 6pt;
+  --sp-4: 8pt;
+  --sp-5: 10pt;
+  --sp-6: 14pt;
+
+  /* Page */
+  --page-width: 210mm;
+  --page-margin-v: 10mm;
+  --page-margin-h: 14mm;
+}
+
+/* ═══════════════════════════════════════
+   COMPACT MODE
+   ═══════════════════════════════════════ */
+body.compact {
+  --fs-name: 19pt;
+  --fs-title: 9.5pt;
+  --fs-body: 9pt;
+  --fs-small: 8pt;
+  --fs-meta: 7.5pt;
+  --lh-body: 1.35;
+  --lh-tight: 1.22;
+  --sp-1: 1pt;
+  --sp-2: 2.5pt;
+  --sp-3: 4pt;
+  --sp-4: 6pt;
+  --sp-5: 8pt;
+  --sp-6: 10pt;
+  --page-margin-v: 8mm;
+  --page-margin-h: 12mm;
+}
+
+/* ═══════════════════════════════════════
+   RESET & BASE
+   ═══════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "Inter", "Noto Sans SC", "Microsoft YaHei", "PingFang SC", -apple-system, sans-serif;
+  color: var(--ink);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  background: var(--paper);
+  max-width: var(--page-width);
+  margin: 0 auto;
+  padding: var(--page-margin-v) var(--page-margin-h);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ═══════════════════════════════════════
+   PRINT SETTINGS
+   ═══════════════════════════════════════ */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+  body {
+    max-width: none;
+    width: 210mm;
+    margin: 0;
+    padding: 10mm 8mm;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  /* Tighter date column in print to prevent right-side clipping */
+  .exp-header,
+  .edu-main,
+  .exp-sub {
+    grid-template-columns: 1fr 110px !important;
+    column-gap: 8px !important;
+  }
+  .no-print { display: none !important; }
+}
+
+/* ═══════════════════════════════════════
+   TYPOGRAPHY
+   ═══════════════════════════════════════ */
+
+/* Name — largest, lightest weight */
+.resume-name {
+  font-size: var(--fs-name);
+  font-weight: 300;
+  letter-spacing: 0.03em;
+  line-height: 1.15;
+  color: var(--ink-strong);
+}
+
+/* Section title — uppercase, tracked, bold */
+.section-title {
+  font-size: var(--fs-title);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-strong);
+  border-bottom: 0.5pt solid var(--rule);
+  padding-bottom: var(--sp-2);
+  margin-top: var(--sp-6);
+  margin-bottom: var(--sp-3);
+}
+
+/* First section after header — reduced top margin */
+.section-title:first-of-type { margin-top: var(--sp-4); }
+
+/* Summary paragraph */
+.summary-text {
+  font-size: var(--fs-body);
+  line-height: var(--lh-tight);
+  color: var(--ink);
+  margin: 0 0 var(--sp-3);
+}
+
+/* ═══════════════════════════════════════
+   HEADER
+   ═══════════════════════════════════════ */
+.resume-header {
+  text-align: center;
+  margin-bottom: var(--sp-5);
+  padding-bottom: var(--sp-5);
+  border-bottom: 1pt solid var(--rule);
+}
+
+.resume-header .resume-name {
+  margin-bottom: var(--sp-1);
+}
+
+.resume-header .resume-subtitle {
+  font-size: var(--fs-small);
+  color: var(--ink-soft);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--sp-3);
+}
+
+.resume-header .contact-row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--sp-1) 14pt;
+  font-size: var(--fs-meta);
+  color: var(--ink-muted);
+  font-weight: 400;
+}
+
+.resume-header .contact-row span {
+  white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════
+   EXPERIENCE ITEM
+   ═══════════════════════════════════════ */
+.exp-item {
+  margin-bottom: var(--sp-4);
+  break-inside: avoid;
+}
+
+/* Row 1: Company / Role — Date (right column, left-aligned) */
+.exp-header {
+  display: grid;
+  grid-template-columns: 1fr 110px;
+  align-items: baseline;
+  column-gap: 12px;
+  font-weight: 600;
+  font-size: var(--fs-body);
+  margin-bottom: var(--sp-1);
+}
+
+.exp-header .exp-role {
+  font-weight: 500;
+  color: var(--ink-strong);
+}
+
+.exp-header .exp-date {
+  white-space: nowrap;
+  color: var(--ink-soft);
+  font-weight: 400;
+  font-size: var(--fs-small);
+  text-align: left;
+}
+
+/* Row 2: Department / Location — optional (right column aligned) */
+.exp-sub {
+  display: grid;
+  grid-template-columns: 1fr 110px;
+  align-items: baseline;
+  column-gap: 12px;
+  font-size: var(--fs-meta);
+  color: var(--ink-muted);
+  font-style: italic;
+  margin-bottom: var(--sp-2);
+}
+
+.exp-sub .exp-loc {
+  white-space: nowrap;
+  font-style: normal;
+  text-align: left;
+}
+
+/* Bullets */
+.exp-bullets {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.exp-bullets li {
+  position: relative;
+  padding-left: 10pt;
+  margin-bottom: 1pt;
+  line-height: var(--lh-tight);
+  font-size: var(--fs-body);
+}
+
+.exp-bullets li::before {
+  content: "—";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--ink-muted);
+  font-size: var(--fs-small);
+}
+
+.exp-bullets .bullet-label {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* ═══════════════════════════════════════
+   EDUCATION ITEM
+   ═══════════════════════════════════════ */
+.edu-item {
+  margin-bottom: var(--sp-3);
+  break-inside: avoid;
+}
+
+.edu-main {
+  display: grid;
+  grid-template-columns: 1fr 110px;
+  align-items: baseline;
+  column-gap: 12px;
+}
+
+.edu-main .edu-degree {
+  font-weight: 600;
+  font-size: var(--fs-body);
+  color: var(--ink-strong);
+}
+
+.edu-main .edu-date {
+  white-space: nowrap;
+  color: var(--ink-soft);
+  font-size: var(--fs-small);
+  font-weight: 400;
+  text-align: left;
+}
+
+.edu-school {
+  font-size: var(--fs-small);
+  color: var(--ink-soft);
+  margin-top: 1pt;
+}
+
+.edu-detail {
+  font-size: var(--fs-meta);
+  color: var(--ink-muted);
+  margin-top: 1pt;
+}
+
+/* ═══════════════════════════════════════
+   SKILLS
+   ═══════════════════════════════════════ */
+.skills-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-1) var(--sp-5);
+}
+
+.skill-entry {
+  font-size: var(--fs-body);
+  line-height: var(--lh-tight);
+  color: var(--ink);
+}
+
+.skill-entry .skill-label {
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+/* ═══════════════════════════════════════
+   SUMMARY / PROFILE PARAGRAPH
+   ═══════════════════════════════════════ */
+.profile-text {
+  font-size: var(--fs-body);
+  color: var(--ink-soft);
+  line-height: var(--lh-tight);
+  margin-bottom: var(--sp-1);
+}
+
+/* ═══════════════════════════════════════
+   META FOOTER (no-print)
+   ═══════════════════════════════════════ */
+.resume-meta {
+  margin-top: var(--sp-5);
+  font-size: 7pt;
+  color: var(--ink-muted);
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     HEADER
+     ═══════════════════════════════════════ -->
+<div class="resume-header">
+  <div class="resume-name">张明远</div>
+  
+  <div class="contact-row">
+    <span>zhangmingyuan@email.com</span>
+    <span>+86 138-0000-0000</span>
+    <span>github.com/zhangmy</span>
+    <span>上海</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SUMMARY (optional)
+     ═══════════════════════════════════════ -->
+<div class="section-title">个人总结</div>
+<p class="summary-text">3 年互联网数据分析经验，擅长搭建数据监控体系与 AB 实验分析框架。曾主导美团核心业务指标看板建设，覆盖 12 条业务线，推动数据驱动决策落地。</p>
+
+
+<!-- ═══════════════════════════════════════
+     EDUCATION
+     ═══════════════════════════════════════ -->
+<div class="section-title">教育经历</div>
+
+<div class="exp-item">
+  <div class="exp-header">
+    <span class="exp-role">上海交通大学 | 数据科学与大数据技术 | 学士</span>
+    <span class="exp-date">2019.09 - 2023.06</span>
+  </div>
+  <ul class="exp-bullets">
+    <li><span class="bullet-label">GPA</span> 3.7/4.0，专业排名前 10%</li>
+    <li><span class="bullet-label">相关课程</span> 统计学、机器学习、数据库系统、数据可视化</li>
+  </ul>
+</div>
+
+
+<!-- ═══════════════════════════════════════
+     EXPERIENCE
+     ═══════════════════════════════════════ -->
+<div class="section-title">工作经历</div>
+
+<div class="exp-item">
+  <div class="exp-header">
+    <span class="exp-role">美团 | 高级数据分析师</span>
+    <span class="exp-date">2023.06 - 至今</span>
+  </div>
+  <ul class="exp-bullets">
+    <li><span class="bullet-label">数据监控体系</span> 搭建核心指标看板，覆盖 12 条业务线，异常检出从人工抽查（~2天）→ 实时告警</li>
+    <li><span class="bullet-label">AB 实验平台</span> 主导实验分析框架设计，支撑 200+ 次/季度实验，决策周期从 2 周缩短至 3 天</li>
+    <li><span class="bullet-label">跨部门协作</span> 对接产品、运营、工程 3 个团队，建立标准化数据需求流程，需求响应时间降低 60%</li>
+    <li><span class="bullet-label">数据仓库优化</span> 重构核心事实表，查询性能提升 4x，节省计算资源 ¥15 万/月</li>
+  </ul>
+</div>
+
+<div class="exp-item">
+  <div class="exp-header">
+    <span class="exp-role">字节跳动 | 数据分析实习生</span>
+    <span class="exp-date">2022.07 - 2023.05</span>
+  </div>
+  <ul class="exp-bullets">
+    <li><span class="bullet-label">用户增长分析</span> 构建新用户留存预测模型，准确率 87%，为增长策略提供数据支撑</li>
+    <li><span class="bullet-label">自动化报表</span> 开发 Python 自动化报表系统，替代手工 Excel 流程，每周节省团队 8 人时</li>
+  </ul>
+</div>
+
+
+<!-- ═══════════════════════════════════════
+     PROJECTS (optional)
+     ═══════════════════════════════════════ -->
+<div class="section-title">项目经历</div>
+
+<div class="exp-item">
+  <div class="exp-header">
+    <span class="exp-role">电商用户行为分析平台 | 毕业设计</span>
+    <span class="exp-date">2022.01 - 2022.06</span>
+  </div>
+  <ul class="exp-bullets">
+    <li><span class="bullet-label">数据采集</span> 设计埋点方案，采集 50 万+ 用户行为数据，覆盖浏览/加购/下单全链路</li>
+    <li><span class="bullet-label">分析建模</span> 基于 RFM 模型对用户分群，识别高价值用户占比 12%，贡献 65% 营收</li>
+  </ul>
+</div>
+
+
+<!-- ═══════════════════════════════════════
+     SKILLS
+     ═══════════════════════════════════════ -->
+<div class="section-title">技能与证书</div>
+
+<div class="skills-grid">
+  <div class="skill-entry"><span class="skill-label">编程语言</span> Python, SQL, R, Scala</div>
+  <div class="skill-entry"><span class="skill-label">工具框架</span> Spark, Hive, Tableau, Airflow, Git</div>
+  <div class="skill-entry"><span class="skill-label">证书</span> CDA 数据分析师（高级）、IELTS 7.5</div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     META
+     ═══════════════════════════════════════ -->
+<div class="resume-meta no-print">
+  Generated by Resume Tailor v3.4
+</div>
+
+</body>
+</html>
