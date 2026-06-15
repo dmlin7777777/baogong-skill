@@ -679,7 +679,7 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 | CP | Name | What Happens |
 |----|------|-------------|
 | **🔴 STOP CP1** | Experience Selection | Reverse chronological review, user picks keep/hide. **WAIT for user confirmation before proceeding.** |
-| CP2 | Content Gaps | Scenario-based gap filling (implicit matches) |
+| **🔴 STOP CP2** | Content Gaps | Scenario-based gap filling (implicit matches). **新增 bullet 必须单独标注 `⚠️ [新增]` 并要求用户确认真实性**——用户确认后 info_status 升为 `confirmed`，用户否认则删除。不可仅凭用户笼统回复（"没问题""没有补充"）通过新增内容。**WAIT for user confirmation.** |
 | **🔴 STOP CP3** | Quantification | Anti-Filler Rule: progressive probing. **WAIT for user to provide numbers or confirm "no data".** |
 | **🔴 STOP CP4** | Wording Upgrade | Verb map, cultural tone slider, before→after comparison. **WAIT for user approval before writing draft.** |
 
@@ -727,6 +727,11 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 
 **Two separate LLM calls — this is the critical architectural guarantee.**
 
+**单 Agent 降级方案**：当运行环境不支持独立 LLM 调用（如 Claude Code 单 session、Cursor 单窗口）时，Writer 和 Auditor 无法真正物理隔离。此时采用以下降级措施：
+1. Writer 完成草稿后，Auditor 必须**重新阅读源简历和 JD 作为首要输入**，不引用 Writer 的推理过程
+2. Auditor 的审计日志必须写入独立文件，不与草稿混在同一输出中
+3. 在审计日志中标注 `isolation_mode: degraded`，表示本次审计在共享上下文中完成
+
 #### Step 4a: Writer Node — Generate Draft
 
 **Node**: Resume Architect (`architect_writer`)
@@ -734,6 +739,7 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 **Input**: All confirmed decisions from Phase 3
 **Action**: Generate Markdown draft, save to `history/YYYY-MM-DD_{company}_{role}.md`
 **Constraint**: DO NOT self-audit. Just produce the draft.
+**🔴 交付物禁止标记泄露**：Writer 输出的 Markdown 草稿是最终交付物的基础，**禁止**在 bullet 中写入 `[✓]`、`[?]`、`[~]` 等信息状态标记。这些标记仅存在于 snapshot 的 `confirmed_quantifications` 字段和审计日志中，不出现在简历正文。
 
 **🔴 Bullet 格式硬规则**：工作经历和项目经历中的每一条 bullet **必须**使用 `**前缀**: 详细内容` 格式。前缀 2-4 个词，命中 JD 关键词，不含形容词。
 

@@ -51,6 +51,9 @@ _DATE_RE = re.compile(
 # Contact separator: phone | email | github | location
 _CONTACT_SEP = re.compile(r'\s*\|\s*')
 
+# Info-status markers that must not leak into deliverables
+_INFO_MARKER_RE = re.compile(r'[ \t]*\[[\✓\?\~✓]\][ \t]*')
+
 
 @dataclass
 class RenderResult:
@@ -109,6 +112,9 @@ def _parse_markdown(md_text: str) -> dict:
     for line in header_lines:
         line = line.strip()
         if not line:
+            continue
+        # Skip Markdown horizontal rules
+        if re.match(r'^[-*_]{3,}$', line):
             continue
         # h1 → name
         h1_m = re.match(r'^#\s+(.+)', line)
@@ -274,6 +280,9 @@ def _parse_entries(section: dict, lines: list):
             current_bullets.append({"prefix": prefix, "detail": detail})
             continue
 
+        # Skip Markdown horizontal rules
+        if re.match(r'^[-*_]{3,}$', line_stripped):
+            continue
         current_sub_lines.append(line_stripped)
 
     if current_entry:
@@ -506,6 +515,7 @@ def render(snapshot_path: str, output_dir: str = None) -> RenderResult:
         return result
 
     md_text = draft_full_path.read_text(encoding="utf-8")
+    md_text = _INFO_MARKER_RE.sub('', md_text)
 
     # Save raw Markdown as deliverable
     md_out = out / "tailored_resume.md"
@@ -566,6 +576,7 @@ def render_md(md_path: str, output_dir: str = None) -> RenderResult:
         return result
 
     md_text = md_file.read_text(encoding="utf-8")
+    md_text = _INFO_MARKER_RE.sub('', md_text)
 
     if output_dir is None:
         output_dir = str(md_file.parent)
