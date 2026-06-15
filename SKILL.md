@@ -754,9 +754,9 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 | `{{SUBTITLE_BLOCK}}` | 目标岗位 / 一句话定位 | 可选，无则留空 |
 | `{{CONTACT_ITEMS}}` | 邮箱、电话、城市、LinkedIn、GitHub | 各一个 `<span>` |
 | `{{SUMMARY_BLOCK}}` | 个人总结段 | 可选，无则留空（含 section-title + 段落） |
+| `{{EDUCATION_SECTION}}` | 教育背景整节（标题 + 条目） | 每个学历 = 一个 `.edu-item` |
 | `{{EXPERIENCE_SECTION}}` | 工作经历整节（标题 + 条目） | 每个经历 = 一个 `.exp-item` |
 | `{{PROJECTS_SECTION}}` | 项目经历整节 | 可选，结构与 experience 相同 |
-| `{{EDUCATION_SECTION}}` | 教育背景整节（标题 + 条目） | 每个学历 = 一个 `.edu-item` |
 | `{{SKILLS_SECTION}}` | 技能整节（标题 + skills-grid） | 每个 skill = 一个 `.skill-entry` |
 | `{{META_EXTRA}}` | 公司名、日期等元信息 | 非打印区生成信息 |
 
