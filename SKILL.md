@@ -712,6 +712,7 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 | 调整语气（弱→强，根据区域 slider） | 添加新的职责范围（如"覆盖从需求到上线的完整产品周期"——除非有依据） |
 | 重组 bullet 结构（结果前置等） | 凭空添加量化数字 |
 | 对齐 JD 关键词（原简历有对应概念时） | 为对齐 JD 编造不存在的经验 |
+| 为每条 bullet 添加 `**前缀**:` 格式（命中 JD 关键词） | 前缀中使用形容词（"高效""全面""创新"） |
 
 **🔴 如果对某条措辞升级是否越界存疑 → 输出 before/after 并标注「不确定是否有依据」，让用户确认后再写入。**
 
@@ -734,6 +735,20 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 **Action**: Generate Markdown draft, save to `history/YYYY-MM-DD_{company}_{role}.md`
 **Constraint**: DO NOT self-audit. Just produce the draft.
 
+**🔴 Bullet 格式硬规则**：工作经历和项目经历中的每一条 bullet **必须**使用 `**前缀**: 详细内容` 格式。前缀 2-4 个词，命中 JD 关键词，不含形容词。
+
+```markdown
+✅ 正确：
+- **数据监控体系**：搭建外卖业务核心指标看板（Tableau），覆盖30+指标
+- **AB 测试优化**：主导3次 A/B 测试设计与分析，推动订单转化率提升8%
+
+❌ 错误：
+- 搭建了外卖业务核心指标看板（Tableau），覆盖30+指标     ← 缺 **前缀**:
+- **高效搭建数据看板**：...                                ← 前缀含形容词"高效"
+```
+
+无 `**前缀**:` 的 bullet = Auditor 4c 自动标记 🟡 MINOR 格式违规。
+
 #### Step 4b: Auditor Node — Compliance Check
 
 **Node**: Sincerity Auditor (`auditor_compliance`)
@@ -747,8 +762,9 @@ Every node MUST append `STATE_UPDATE JSON` at end of output (see `templates/stat
 **Input**: Draft + interviewer persona + JD context + **Phase 1 `interview_intel`（面经摘要 + 面试重点提示）**
 **Actions**:
 1. Construct senior interviewer persona based on role type **+ Phase 1 S1 面经中提取的面试官风格/高频考点**
-2. Review every bullet for: AI trace, logical gap, scope inflation, buzzword defense, cultural mismatch
+2. Review every bullet for: AI trace, logical gap, scope inflation, buzzword defense, cultural mismatch, **`**前缀**:` 格式缺失**
 3. Classify severity: 🔴 MAJOR / 🟡 MINOR / 🟢 INFO
+   - 缺少 `**前缀**:` 格式的 bullet → 🟡 MINOR（格式违规，回退 Writer 补前缀）
 4. For each 🔴 MAJOR: generate mock interview questions + STAR prep sheets
    - **Mock 问题优先取材自 Phase 1 S1 面经**：如面经中提到"面试官喜欢追问 AB 测试细节"，则 mock 问题必须覆盖 AB 测试场景
 
