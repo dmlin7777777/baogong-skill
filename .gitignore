@@ -3,6 +3,12 @@ sessions/
 history/
 output/
 
+# User data (personal resumes, JDs, test files)
+resume_master.md
+project-story-library.md
+test_*.txt
+test_*.json
+
 # Design docs (local only)
 docs/plans/
 
