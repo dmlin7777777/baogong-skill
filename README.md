@@ -2,18 +2,18 @@
 
 # 包公.skill
 
-> _「面试官追问"这个 30% 怎么算的"——你答得上来，才叫简历。」_
+> _「每一条经历，都要过堂。过不了的，打回重写。」_
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Agent Skills](https://img.shields.io/badge/Agent%20Skills-Standard-green)](https://agentskills.io)
 [![skills.sh](https://img.shields.io/badge/skills.sh-Compatible-blue)](https://skills.sh)
 [![Multi-Runtime](https://img.shields.io/badge/Runtime-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Gemini%20CLI%20%C2%B7%20Cursor-blueviolet)](#安装)
 
-**别的工具帮你编得更像。这个帮你真得更强。**
+**别的工具帮你润色。包公帮你过堂——能扛住追问的，才上终稿。**
 
-针对 JD 交互式定制简历，编造阻断门确保每条经历经得起面试追问。HTML + Markdown 双交付。
+铁面审计型求职教练。针对 JD 交互式定制简历，编造一条打回一条。HTML + Markdown 双交付。
 
-[看效果](#效果示例) · [安装](#安装) · [交付什么](#交付物) · [凭什么不同](#凭什么不同) · [工作原理](#工作原理)
+[看效果](#效果示例) · [安装](#安装) · [交付什么](#交付物) · [铡刀门](#铡刀门编造阻断) · [工作原理](#工作原理)
 
 **其他语言：** [English](README.en.md) · 简体中文
 
@@ -25,7 +25,7 @@
 
 <img src="assets/before-after.png" alt="Before: 空泛描述 → After: 量化经历 + 瑞士国际主义排版" width="100%">
 
-▲ 左：典型 AI 润色输出（空泛形容词）　→　右：包公.skill 交付（量化 + 瑞士风排版）
+▲ 左：典型 AI 润色（空泛形容词堆砌）　→　右：过堂后终稿（量化到人、事、数 + 瑞士风排版）
 
 </div>
 
@@ -67,9 +67,9 @@ Arch  ❯ ✅ 量化补充完成：
 ```
 
 ```
-Audit ❯ 编造阻断门 10/10 通过。
-        信息状态：[✓] 12条业务线  [✓] 实时告警  [✓] 用户确认
-        ⚠️ 无 [~] 推断项。终稿合规。
+Audit ❯ 铡刀门 10/10 通过。
+        三色签：[✓] 12条业务线  [✓] 实时告警  [✓] 用户亲口确认
+        ⚠️ 无 [~] 推断项。终稿合规，准予定稿。
 
         📋 面试准备包已生成：
         Q1: "看板的指标是怎么选的？谁定的？"
@@ -104,7 +104,7 @@ git clone https://github.com/dmlin7777777/baogong-skill.git ~/.claude/skills/bao
 帮我针对这个 JD 调简历
 ```
 
-调研 → 匹配 → 调整 → 审计 → 渲染，全自动。
+升堂 → 过堂 → 断案 → 定稿，全自动。
 
 ---
 
@@ -130,9 +130,9 @@ git clone https://github.com/dmlin7777777/baogong-skill.git ~/.claude/skills/bao
 
 ---
 
-## 编造阻断门
+## 铡刀门：编造阻断
 
-**10 条硬规则。违反任何一条 → 整份草稿 ROLLBACK。**
+**10 条铁律。违反任何一条 → 整份草稿打回重审。**
 
 | 规则 | 说明 |
 |---|---|
@@ -142,9 +142,9 @@ git clone https://github.com/dmlin7777777/baogong-skill.git ~/.claude/skills/bao
 | 时间线不能矛盾 | 2022 年入职，不能写 2021 年的项目 |
 | 推断禁止交付 | `[~]` 标记 → 自动升级审计 → 禁止出现在终稿 |
 
-**信息状态标记**：`[✓]` 用户确认 · `[?]` 待验证 · `[~]` 模型推断
+**信息状态三色签**：`[✓]` 用户亲口确认 · `[?]` 待验证 · `[~]` 模型推断（禁止交付）
 
-> 量化追问最多 2 轮。说不出来？保留原文。**绝不编数字。**
+> 量化追问最多 2 轮。说不出来？保留原文。**包公不编数字。**
 
 ---
 
@@ -152,9 +152,9 @@ git clone https://github.com/dmlin7777777/baogong-skill.git ~/.claude/skills/bao
 
 |  | 包公.skill | 通用 AI 问答 | SaaS (Jobscan 等) |
 |---|---|---|---|
-| **编造阻断** | 10 条硬规则 + ROLLBACK | 无 | 无 |
-| **信息溯源** | `[✓]` / `[?]` / `[~]` 三级标记 | 无 | 无 |
-| **审计隔离** | Writer / Auditor 物理隔离 | 自我审计 | 无审计 |
+| **铡刀门** | 10 条铁律 + 整稿打回 | 无 | 无 |
+| **信息溯源** | `[✓]` / `[?]` / `[~]` 三色签 | 无 | 无 |
+| **审计隔离** | 撰写 / 审计 物理隔离（不能自己审自己） | 自我审计 | 无审计 |
 | **面试准备** | 基于真实面经 | 通用模板 | 无 |
 | **量化引导** | 2 轮递进追问，说不出保留原文 | 直接编数字 | 仅关键词 |
 | **文化适配** | 北美自信 → 东亚协同 → 北欧谦逊 | 无 | 部分 |
@@ -177,12 +177,12 @@ git clone https://github.com/dmlin7777777/baogong-skill.git ~/.claude/skills/bao
 
 ---
 
-## 安全边界
+## 包公立规
 
 <table>
 <tr><td>
 
-**不会做**
+**铁面拒绝**
 - 编造你没做过的事
 - 夸大你的角色
 - 添加你不会的技能
@@ -191,7 +191,7 @@ git clone https://github.com/dmlin7777777/baogong-skill.git ~/.claude/skills/bao
 
 </td><td>
 
-**会停下来等你确认**
+**停堂等你确认**
 1. 公司/地区确认
 2. 经历取舍（CP1）
 3. 内容缺口补全（CP2）
@@ -222,10 +222,10 @@ git clone https://github.com/dmlin7777777/baogong-skill.git ~/.claude/skills/bao
 
 | 阶段 | 节点 | 做什么 | 你的角色 |
 |---|---|---|---|
-| 1 | **Scout** | JD 解析 + 公司调研 + 面经搜索（4 级降级链） | 审阅确认 |
-| 2 | **Architect** | 直接匹配 + 隐性匹配 + 置信度 + 量化追问 | 确认或否决 |
-| 3 | **Auditor** | 编造阻断门 + 面试官挑战 + 合规检查 | 最终审阅 |
-| 4 | **Renderer** | MD → 瑞士国际主义风 HTML，零依赖 | 接收交付 |
+| 升堂 | **Scout** | JD 解析 + 公司调研 + 面经搜索（4 级降级链） | 审阅确认 |
+| 过堂 | **Architect** | 匹配 + 量化追问（最多 2 轮，说不出就保留原文） | 确认或否决 |
+| 断案 | **Auditor** | 铡刀门 10 条铁律 + 面试官挑战 + 合规检查 | 最终审阅 |
+| 定稿 | **Renderer** | MD → 瑞士国际主义风 HTML，零依赖 | 接收交付 |
 
 ---
 
