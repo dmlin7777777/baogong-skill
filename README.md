@@ -40,9 +40,11 @@ JD 驱动的简历定制教练：调卷宗 → 当堂陈词 → 案卷归档 →
 
 <div align="center">
 
-<img src="assets/before-after.png" alt="Before: 空泛描述 → After: 量化经历 + 瑞士国际主义排版" width="100%">
+<img src="assets/before.png" alt="Before: 典型 AI 润色 — 空泛形容词堆砌" width="100%">
 
-▲ 左：典型 AI 润色（空泛形容词堆砌）　→　右：包公四幕审完后终稿（量化到人、事、数 + 瑞士风排版）
+<img src="assets/after.png" alt="After: 包公四幕审完后终稿 — 量化到人、事、数 + 瑞士风排版" width="100%">
+
+▲ 上：典型 AI 润色（空泛形容词堆砌）　→　下：包公四幕审完后终稿（量化到人、事、数 + 瑞士风排版）
 
 </div>
 
