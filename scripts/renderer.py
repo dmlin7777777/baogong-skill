@@ -35,11 +35,11 @@ SWISS_TEMPLATE = "resume_swiss.html"
 
 # Section classification: h2 text → section type
 _SECTION_KEYS = {
-    "experience": ["经历", "实习", "工作", "experience", "work", "intern"],
-    "education":  ["教育", "学历", "education"],
-    "projects":   ["项目", "学术", "projects", "academic"],
-    "skills":     ["技能", "证书", "skills", "certif"],
     "summary":    ["总结", "简介", "概要", "summary", "profile", "about"],
+    "projects":   ["项目", "学术", "projects", "academic"],
+    "education":  ["教育", "学历", "education"],
+    "skills":     ["技能", "证书", "skills", "certif"],
+    "experience": ["经历", "实习", "工作", "experience", "work", "intern"],
 }
 
 # Date patterns: "2024.07 — 至今", "2021.09 — 2024.06", "Jun 2023 – Present"
@@ -174,6 +174,17 @@ def _flush_section(section: dict, lines: list, result: dict):
     result["sections"].append(section)
 
 
+def _auto_prefix(text: str) -> tuple:
+    """Auto-extract a bold prefix from plain bullet text.
+    Splits on the first colon (Chinese or ASCII) if the prefix part is 2-20 chars.
+    Skips URL-like patterns (colon followed by //).
+    Returns (prefix, detail). Empty prefix if no natural split found."""
+    m = re.match(r'^(.{2,20})[：:]\s*(?!//)(.+)', text)
+    if m:
+        return m.group(1).strip(), m.group(2).strip()
+    return "", text
+
+
 def _parse_entries(section: dict, lines: list):
     """Parse h3-delimited entries with bullet points.
     If no h3 headings found (e.g. skills section), all bullets go into one virtual entry."""
@@ -193,7 +204,13 @@ def _parse_entries(section: dict, lines: list):
                 continue
             pb = re.match(r'^[-*]\s+(.+)', line_s)
             if pb:
-                bullets.append({"prefix": "", "detail": pb.group(1).strip()})
+                raw = pb.group(1).strip()
+                prefix, detail = _auto_prefix(raw)
+                if not prefix:
+                    section.setdefault("_warnings", []).append(
+                        f"Bullet missing **Prefix**: format: {raw[:50]}"
+                    )
+                bullets.append({"prefix": prefix, "detail": detail})
         section["entries"] = [{"title": "", "subtitle": "", "date": "", "bullets": bullets}]
         return
 
@@ -248,7 +265,13 @@ def _parse_entries(section: dict, lines: list):
             if current_sub_lines:
                 _flush_sub_info(current_entry, current_sub_lines)
                 current_sub_lines = []
-            current_bullets.append({"prefix": "", "detail": plain_bullet.group(1).strip()})
+            raw = plain_bullet.group(1).strip()
+            prefix, detail = _auto_prefix(raw)
+            if not prefix:
+                section.setdefault("_warnings", []).append(
+                    f"Bullet missing **Prefix**: format: {raw[:50]}"
+                )
+            current_bullets.append({"prefix": prefix, "detail": detail})
             continue
 
         current_sub_lines.append(line_stripped)
@@ -501,6 +524,9 @@ def render(snapshot_path: str, output_dir: str = None) -> RenderResult:
     # Parse + render
     try:
         parsed = _parse_markdown(md_text)
+        for s in parsed.get("sections", []):
+            for w in s.pop("_warnings", []):
+                result.warnings.append(w)
         html_output = _fill_template(parsed, template)
 
         html_out = out / "tailored_resume.html"
@@ -557,6 +583,9 @@ def render_md(md_path: str, output_dir: str = None) -> RenderResult:
 
     try:
         parsed = _parse_markdown(md_text)
+        for s in parsed.get("sections", []):
+            for w in s.pop("_warnings", []):
+                result.warnings.append(w)
         html_output = _fill_template(parsed, template)
 
         html_out = out / (md_file.stem + ".html")
