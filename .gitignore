@@ -12,6 +12,9 @@ test_*.json
 # Design docs (local only)
 docs/plans/
 
+# One-off scripts
+scripts/gen_assets.py
+
 # Python
 __pycache__/
 *.pyc
