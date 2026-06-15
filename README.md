@@ -1,130 +1,136 @@
 <div align="center">
 
-![Version](https://img.shields.io/badge/v3.4-1a1a2e?style=for-the-badge)
-![License](https://img.shields.io/badge/MIT-1a1a2e?style=for-the-badge)
-![Zero Deps](https://img.shields.io/badge/ZERO_DEPS-1a1a2e?style=for-the-badge)
-![Scenarios](https://img.shields.io/badge/6_SCENARIOS-1a1a2e?style=for-the-badge)
+# Resume Tailor
 
-# RESUME TAILOR
+> _「面试官追问"这个 30% 怎么算的"——你答得上来，才叫简历。」_
 
-### 别的工具帮你编得更像。这个帮你真得更强。
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Agent Skills](https://img.shields.io/badge/Agent%20Skills-Standard-green)](https://agentskills.io)
+[![skills.sh](https://img.shields.io/badge/skills.sh-Compatible-blue)](https://skills.sh)
+[![Multi-Runtime](https://img.shields.io/badge/Runtime-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Gemini%20CLI%20%C2%B7%20Cursor-blueviolet)](#安装)
 
-<br>
+**别的工具帮你编得更像。这个帮你真得更强。**
 
-<em>简历上写了"提升 30%"，面试官追问"怎么算的"——你答得上来吗？</em>
+针对 JD 交互式定制简历，编造阻断门确保每条经历经得起面试追问。HTML + Markdown 双交付。
 
-<br>
+[看效果](#效果示例) · [安装](#安装) · [交付什么](#交付物) · [凭什么不同](#凭什么不同) · [工作原理](#工作原理)
 
-[English](README.en.md) · 简体中文 · [更新日志](CHANGELOG.md)
-
-<br>
-
-![Claude Code](https://img.shields.io/badge/Claude_Code-000?style=flat&logo=anthropic&logoColor=white)
-![Codex](https://img.shields.io/badge/Codex-412991?style=flat&logo=openai&logoColor=white)
-![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-4285F4?style=flat&logo=google&logoColor=white)
-![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
+**其他语言：** [English](README.en.md) · 简体中文
 
 </div>
 
 ---
 
-## ── 安装
+## 效果示例
 
+```
+用户  ❯ 帮我针对这个美团高级数据分析师 JD 调简历
+
+Scout ❯ ✅ JD 解析完成。提取 5 个能力簇：
+        Python/SQL · AB实验 · 数据仓库 · 跨部门协作 · 指标体系
+        📡 搜索美团面经中... 找到 12 条高频问题。
+
+Arch  ❯ 匹配你的 3 段经历，置信度：
+        ┌─────────────────────────────────┐
+        │ 美团实习      → 直接匹配  92%   │
+        │ 毕设数据项目  → 隐性匹配  71%   │
+        │ 社团财务      → 弱匹配    34%   │
+        └─────────────────────────────────┘
+        ⏸ CP1 等你确认：保留前两段，隐藏第三段？
+
+用户  ❯ 可以
+
+Arch  ❯ 量化追问（CP3，第 1 轮）：
+        你写了"搭建数据看板"——覆盖多少业务线？
+        异常发现的响应时间从多少降到多少？
+
+用户  ❯ 12 条业务线，之前靠人工抽查大概两天发现，
+        现在实时告警
+
+Arch  ❯ ✅ 量化补充完成：
+```
+
+```diff
+- 负责数据分析相关工作，得到领导认可
++ **数据监控体系**：搭建核心指标看板，覆盖 12 条业务线，
++   异常检出从人工抽查（~2天）→ 实时告警
+```
+
+```
+Audit ❯ 编造阻断门 10/10 通过。
+        信息状态：[✓] 12条业务线  [✓] 实时告警  [✓] 用户确认
+        ⚠️ 无 [~] 推断项。终稿合规。
+
+        📋 面试准备包已生成：
+        Q1: "看板的指标是怎么选的？谁定的？"
+        Q2: "实时告警的误报率多少？怎么处理的？"
+```
+
+---
+
+## 安装
+
+```bash
+npx skills add dmlin7777777/Resume-Tailor
+```
+
+<details>
+<summary>其他安装方式</summary>
+
+**手动安装（Claude Code）：**
 ```bash
 git clone https://github.com/dmlin7777777/Resume-Tailor.git ~/.claude/skills/resume-tailor
 ```
 
-然后对 Claude 说：
+**Cursor / Codex / 其他 runtime：**
+
+将 `SKILL.md` 放到对应 runtime 的 skills 目录即可。
+
+</details>
+
+装好后说一句话就行：
 
 ```
 帮我针对这个 JD 调简历
 ```
 
-就这一句。调研 → 匹配 → 调整 → 审计 → 渲染，全自动。
+调研 → 匹配 → 调整 → 审计 → 渲染，全自动。
 
 ---
 
-## ── 为什么需要它
-
-> 公司用 AI 筛掉你。你用 AI **让自己配得上**——而不是编得更像。
-
-| # | 传统 AI 改写 | Resume Tailor |
-|---|---|---|
-| 01 | "显著提升了数据分析效率" | "搭建自动化对账工具，月度核算从 **5 天→6 小时**，覆盖 **12 条业务线**" |
-| 02 | 缺数据 → 编空泛形容词 | 递进追问引导量化，说不出 → 保留原文 |
-| 03 | 什么都"主导" | *"你是最终决策者吗？"* — 每条声明都挑战 |
-| 04 | 一份投所有 | 按地区调语调/格式/隐私（北美自信 → 东亚协同 → 北欧谦逊） |
-
----
-
-## ── 四阶段引擎
-
-每次运行都经过同一管线：**调研** → **匹配** → **审计** → **渲染**。
-
-| # | 阶段 | 做什么 | 你的角色 |
-|---|---|---|---|
-| **01** | **Scout 调研** | JD 解析 + 公司背景 + 面经搜索（4 级降级链） | 审阅确认 |
-| **02** | **Architect 匹配** | 直接匹配 + 隐性关联 + 置信度评分 | 审阅匹配表 |
-| **03** | **Auditor 审计** | 编造阻断门 + 面试官挑战 + 合规检查 | 最终审阅 |
-| **04** | **Renderer 渲染** | Markdown → 瑞士国际主义风 HTML，零依赖 | 接收交付 |
-
-> Writer 和 Auditor **物理隔离**——不是同一个 LLM 调用自己审自己。
-
----
-
-## ── 交付物
+## 交付物
 
 你不只得到一份简历。你得到一套**求职攻防包**：
 
 | 交付物 | 格式 | 说明 |
 |---|---|---|
-| **定制简历** | HTML + Markdown | 瑞士风，A4 打印优化，单文件零依赖 |
+| **定制简历** | HTML + Markdown | 瑞士国际主义风，A4 打印优化，单文件零外部依赖 |
 | **审计日志** | Markdown | 每条修改的置信度 + 缺口标记 + 合规预警 |
 | **面试准备包** | Markdown | 基于真实面经的 mock 问题 + STAR 笔记 |
 
-**Bullet 格式**：每条经历强制 `**前缀**: 详细内容`，前缀命中 JD 关键词，面试官一眼看到匹配。
-
-```diff
-- 负责数据分析相关工作，得到领导认可
-+ **数据监控体系**：搭建核心指标看板，覆盖 12 条业务线，异常检出率从人工抽查 → 实时告警
-```
+**Bullet 格式硬规则**：每条经历强制 `**前缀**: 详细内容`——前缀命中 JD 关键词，面试官一眼看到匹配。
 
 ---
 
-## ── 编造阻断门
+## 编造阻断门
 
 **10 条硬规则。违反任何一条 → 整份草稿 ROLLBACK。**
 
 | 规则 | 说明 |
 |---|---|
-| 数据必须有来源 | "提升 30%" → 你怎么知道的？谁告诉你的？ |
+| 数据必须有来源 | "提升 30%" → 你怎么知道的？ |
 | 动词必须匹配证据 | "主导" → 你是最终决策者？还是"参与"？ |
-| 技能必须有使用证明 | 写了 Python → 你在哪个项目用的？什么场景？ |
+| 技能必须有使用证明 | 写了 Python → 哪个项目？什么场景？ |
 | 时间线不能矛盾 | 2022 年入职，不能写 2021 年的项目 |
-| 推断内容禁止交付 | `[~]` 标记 → 自动升级审计严格度 → 禁止出现在终稿 |
+| 推断禁止交付 | `[~]` 标记 → 自动升级审计 → 禁止出现在终稿 |
 
 **信息状态标记**：`[✓]` 用户确认 · `[?]` 待验证 · `[~]` 模型推断
 
-> 量化追问最多 2 轮。说不出来？保留原文。绝不编数字。
+> 量化追问最多 2 轮。说不出来？保留原文。**绝不编数字。**
 
 ---
 
-## ── 6 场景自动路由
-
-说什么就走什么管线，不用选模式：
-
-| 场景 | 你说 | 系统做 |
-|---|---|---|
-| **A** JD + 简历 | "帮我针对这个 JD 调简历" | 完整管线：调研→匹配→审计→渲染 |
-| **A2** 多 JD 批量 | "这几个 JD 分别做简历" | 共享事实库 + 逐 JD 定制 |
-| **B** 仅简历 | "帮我优化简历" | 故事库打磨，无 JD 匹配 |
-| **C** 仅 JD | "这个岗位需要什么能力" | 缺口分析 + 准备建议 |
-| **D** 信息不足 | "帮我做简历" | 引导式信息收集 |
-| **E** 造假请求 | "帮我编一段谷歌经历" | 硬拒绝 + 替代建议 |
-
----
-
-## ── 和同类有什么不同
+## 凭什么不同
 
 |  | Resume Tailor | 通用 AI 问答 | SaaS (Jobscan 等) |
 |---|---|---|---|
@@ -132,13 +138,28 @@ git clone https://github.com/dmlin7777777/Resume-Tailor.git ~/.claude/skills/res
 | **信息溯源** | `[✓]` / `[?]` / `[~]` 三级标记 | 无 | 无 |
 | **审计隔离** | Writer / Auditor 物理隔离 | 自我审计 | 无审计 |
 | **面试准备** | 基于真实面经 | 通用模板 | 无 |
-| **量化引导** | 2 轮递进追问 | 直接编数字 | 仅关键词匹配 |
-| **文化适配** | 北美/东亚/北欧 三档 | 无 | 部分 |
-| **安装依赖** | 零（纯 Python 标准库） | N/A | 付费 SaaS |
+| **量化引导** | 2 轮递进追问，说不出保留原文 | 直接编数字 | 仅关键词 |
+| **文化适配** | 北美自信 → 东亚协同 → 北欧谦逊 | 无 | 部分 |
+| **依赖** | 零（纯 Python 标准库） | N/A | 付费 SaaS |
 
 ---
 
-## ── 安全边界
+## 6 场景自动路由
+
+说什么就走什么管线，不用选模式：
+
+| 场景 | 你说 | 系统做 |
+|---|---|---|
+| **A** JD + 简历 | "帮我针对这个 JD 调简历" | 完整管线：调研→匹配→审计→渲染 |
+| **A2** 多 JD | "这几个 JD 分别做简历" | 共享事实库 + 逐 JD 定制 |
+| **B** 仅简历 | "帮我优化简历" | 故事库打磨，无 JD 匹配 |
+| **C** 仅 JD | "这个岗位需要什么能力" | 缺口分析 + 准备建议 |
+| **D** 信息不足 | "帮我做简历" | 引导式收集 |
+| **E** 造假请求 | "帮我编一段谷歌经历" | 硬拒绝 + 替代建议 |
+
+---
+
+## 安全边界
 
 <table>
 <tr><td>
@@ -164,7 +185,7 @@ git clone https://github.com/dmlin7777777/Resume-Tailor.git ~/.claude/skills/res
 
 ---
 
-## ── 工作原理
+## 工作原理
 
 ```
 ┌──────────────────────────────────────────────────────┐
@@ -180,6 +201,13 @@ git clone https://github.com/dmlin7777777/Resume-Tailor.git ~/.claude/skills/res
 │  renderer.py: MD → 解析 → HTML（纯标准库）              │
 └──────────────────────────────────────────────────────┘
 ```
+
+| 阶段 | 节点 | 做什么 | 你的角色 |
+|---|---|---|---|
+| 1 | **Scout** | JD 解析 + 公司调研 + 面经搜索（4 级降级链） | 审阅确认 |
+| 2 | **Architect** | 直接匹配 + 隐性匹配 + 置信度 + 量化追问 | 确认或否决 |
+| 3 | **Auditor** | 编造阻断门 + 面试官挑战 + 合规检查 | 最终审阅 |
+| 4 | **Renderer** | MD → 瑞士国际主义风 HTML，零依赖 | 接收交付 |
 
 ---
 
@@ -224,16 +252,9 @@ pdfplumber>=0.10.0     # PDF 读取（非渲染必需）
 ### 脚本使用
 
 ```bash
-# JD 特征提取
 python -X utf8 scripts/main.py parse jd.txt --file --resume resume.docx --json
-
-# 源 vs 定制 diff
 python -X utf8 scripts/main.py diff --source resume_master.md --tailored tailored.md --json
-
-# ATS 兼容性检查
 python -X utf8 scripts/main.py ats --resume tailored.md --keywords "Python,SQL" --region north_america
-
-# Markdown → HTML 渲染
 python -X utf8 scripts/renderer.py --md draft.md --output output/
 ```
 
@@ -243,10 +264,10 @@ python -X utf8 scripts/renderer.py --md draft.md --output output/
 
 ```css
 :root {
-  --ink: #2d3748;          /* 正文颜色 */
-  --ink-light: #718096;    /* 次要文字 */
-  --fs-body: 11pt;         /* 正文字号 */
-  --lh-tight: 1.5;         /* 行高 */
+  --ink: #2d3748;
+  --ink-light: #718096;
+  --fs-body: 11pt;
+  --lh-tight: 1.5;
 }
 ```
 
@@ -254,7 +275,9 @@ python -X utf8 scripts/renderer.py --md draft.md --output output/
 
 ---
 
-<div align="center">
+## 版本历史
+
+见 [CHANGELOG.md](CHANGELOG.md)。
 
 | 版本 | 日期 | 要点 |
 |---|---|---|
@@ -262,7 +285,9 @@ python -X utf8 scripts/renderer.py --md draft.md --output output/
 | **v3.3** | 2026-06 | 三层联网搜索、零依赖渲染、瑞士风 HTML 模板 |
 | **v3.2** | 2026-05 | 初始化系统、Agent 反模式、Darwin 76→92 |
 
-<br>
+---
+
+<div align="center">
 
 MIT License
 
