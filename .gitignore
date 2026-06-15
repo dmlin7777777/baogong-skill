@@ -1,3 +1,7 @@
+# Claude Code workspaces
+.claude/
+stress_test_log.md
+
 # Runtime artifacts
 sessions/
 history/
