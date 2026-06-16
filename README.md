@@ -9,8 +9,8 @@
 [![skills.sh](https://img.shields.io/badge/skills.sh-Compatible-blue)](https://skills.sh)
 [![Multi-Runtime](https://img.shields.io/badge/Runtime-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Gemini%20CLI%20%C2%B7%20Cursor-blueviolet)](#安装)
 
-**针对 JD 交互式定制简历的求职教练。**
-**每条经历经得起面试追问，编造自动阻断。HTML + Markdown 双交付。**
+**先查面经和公司动态，再逐条审你的经历——追出数字、砍掉编造、对齐关键词，**
+**交付一份面试官追不穿的定制简历和一套基于真实面经的应对准备包。**
 
 **其他语言：** [English](README.en.md) · 简体中文
 
