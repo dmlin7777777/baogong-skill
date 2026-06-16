@@ -9,10 +9,8 @@
 [![skills.sh](https://img.shields.io/badge/skills.sh-Compatible-blue)](https://skills.sh)
 [![Multi-Runtime](https://img.shields.io/badge/Runtime-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Gemini%20CLI%20%C2%B7%20Cursor-blueviolet)](#安装)
 
-**你的简历写完了，面试官一追问就穿帮。**
-
-这就是 AI 简历工具的脏秘密：它帮你"润色"了一份你自己都说不清楚的简历。
-包公不润色——包公开堂审。从卷宗调阅到应对回话，编造一条打回一条。
+**针对 JD 交互式定制简历的求职教练。**
+**每条经历经得起面试追问，编造自动阻断。HTML + Markdown 双交付。**
 
 **其他语言：** [English](README.en.md) · 简体中文
 
@@ -20,7 +18,7 @@
 
 ---
 
-## 传统 AI 润色 vs 包公开堂
+## 你的简历写完了，面试官一追问就穿帮
 
 <div align="center">
 
