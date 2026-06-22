@@ -1,5 +1,5 @@
 """
-包公.skill — Pipeline Engine (v3.3)
+包公.skill — Pipeline Engine (v3.4)
 
 Pseudo Multi-Agent Blackboard Architecture — state management layer.
 

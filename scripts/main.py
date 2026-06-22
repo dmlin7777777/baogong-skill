@@ -1,5 +1,5 @@
 """
-包公.skill — Unified CLI Entry Point (v3.3)
+包公.skill — Unified CLI Entry Point (v3.4)
 
 Pure argparse layer. All business logic lives in engine.py,
 jd_parser.py, diff_audit.py, and ats_checker.py.
@@ -118,7 +118,7 @@ def cmd_ats(args):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="包公.skill v3.3 — Unified CLI",
+        description="包公.skill v3.4 — Unified CLI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     subparsers = parser.add_subparsers(dest="command", required=True)

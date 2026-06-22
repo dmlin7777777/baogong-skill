@@ -574,6 +574,10 @@ def parse_jd(text: str, resume_text: str = None) -> dict:
         portfolio = check_portfolio_links(text, resume_text)
         summary["portfolio"] = portfolio
 
+    for req in requirements:
+        req["category"] = req.pop("type")
+        req["met"] = req.pop("resume_match", None)
+
     output = {
         "language": lang,
         "hard_requirements": requirements,
@@ -712,8 +716,8 @@ def print_report(analysis: dict):
         print(f"\n  {no_req}")
     else:
         for req in reqs:
-            match_icon = "✅" if req.get("resume_match") else "❌" if req.get("resume_match") is False else "—"
-            line = f"  {match_icon} [{req['type']}] {req['value']}"
+            match_icon = "✅" if req.get("met") else "❌" if req.get("met") is False else "—"
+            line = f"  {match_icon} [{req['category']}] {req['value']}"
             if req.get("note"):
                 line += f"\n       └─ {req['note']}"
             print(line)
@@ -751,7 +755,7 @@ def validate_output(analysis: dict) -> bool:
     if not isinstance(analysis["hard_requirements"], list):
         return False
     for req in analysis["hard_requirements"]:
-        if not all(k in req for k in ["type", "value"]):
+        if not all(k in req for k in ["category", "value"]):
             return False
     return True
 
